@@ -1,361 +1,108 @@
-# Accountant Request Tracker
+# Accountant Request Tracker with Autonomous Date & Time Watcher Agent
 
-A lightweight, robust full-stack prototype for an **Accountant Request Tracker** designed for accounting teams to create requests, assign tasks to team members, track statuses, identify overdue tasks, and automatically generate reminders via a background scheduler.
-
----
-
-## 1. Project Overview
-
-In an accounting firm, managers receive diverse client tasks (e.g., *GST Filing*, *TDS Reporting*, *Audit Reports*) and assign them to specific team accountants. 
-
-This application provides:
-- A clean, responsive single-page dashboard to create and view accounting requests.
-- Live status management (`OPEN` → `IN_PROGRESS` → `COMPLETED`).
-- Automatic overdue detection for open tasks whose due date has passed.
-- A background **Spring Scheduler** that periodically scans for overdue requests and generates targeted reminders for assignees without spamming duplicates.
-- Complete REST APIs compatible with Postman, curl, or any modern client.
+A full-stack system designed for accounting teams featuring **Role-Based Portals** (Accountant vs. Employee), exact **Date & Time deadline tracking**, and an **Autonomous Watcher Agent** that monitors deadlines and automatically generates overdue alerts with email notifications dispatched to the Assignee and CC'd to the Accountant (**`kathirvelpalani294@gmail.com`**).
 
 ---
 
-## 2. Features
+## 1. Project Overview & Role Architecture
 
-* **Create Request**: Form with validation for Title, Client Name, Assignee dropdown (Kumar, Ravi, Arun, Priya), Due Date, and Status.
-* **Request List & Dashboard**: Real-time table displaying ID, Title, Client Name, Assignee, Due Date, Status, Overdue Indicator, and Actions.
-* **Live Status Updates**: Update status directly (`OPEN`, `IN_PROGRESS`, `COMPLETED`), persisting changes to the MySQL database via REST API.
-* **Overdue Detection**: Flags any request with `status == OPEN` and `dueDate < today` with a visible `⚠️ OVERDUE` badge.
-* **Due Date Sorting**: One-click sorting by due date ascending (backed by `GET /api/requests/sorted`).
-* **Automated Overdue Reminders**: Background Spring Scheduler runs at a configurable interval (default: 60s), identifies overdue tasks, logs formatted alerts, and persists them to the `reminders` table.
-* **Duplicate Prevention**: Tracks `lastReminderAt` to ensure assignees receive at most one reminder per overdue task per day.
-* **Demo Data Seeding**: Quick-seed button and endpoint (`POST /api/requests/seed`) providing pre-configured test scenarios (including overdue tasks).
+### 👔 Accountant Portal
+* **Static Login**: `kathirvelpalani294@gmail.com` (Password: `accountant123`)
+* **Capabilities**:
+  * Create and assign accounting tasks with **exact Date & Time deadlines**.
+  * Choose from dynamic employees or register new ones.
+  * Monitor the full team dashboard across all tasks.
+  * Real-time summary metrics (Total, Open, In Progress, Completed, Overdue).
+  * Sort by deadline chronologically.
+  * Control and inspect the **Autonomous Overdue Watcher Agent** scan log and email alerts.
 
----
-
-## 3. Architecture
-
-### Request & Data Flow
-```
-Browser (React Dashboard)
-       │
-       ▼ (HTTP / JSON)
- Axios API Client (frontend/src/services/requestService.js)
-       │
-       ▼
- Spring Boot REST Controller (RequestController.java)
-       │
-       ▼
- Service Layer (RequestService.java)
-       │
-       ▼
- Spring Data JPA Repository (RequestRepository.java)
-       │
-       ▼
- MySQL Database (Table: requests, reminders)
-```
-
-### Automation & Reminder Flow
-```
-Spring Boot Scheduler (@Scheduled in OverdueRequestScheduler.java)
-       │ (Runs every fixedRate, e.g. 60000ms from application.properties)
-       ▼
- RequestService.checkAndGenerateOverdueReminders()
-       │
-       ├── 1. Queries DB: status = 'OPEN' AND dueDate < LocalDate.now()
-       ├── 2. Filters out requests already reminded today (lastReminderAt check)
-       ├── 3. Formats assignee reminder notification
-       ├── 4. Logs to application console
-       ├── 5. Persists Reminder record to 'reminders' table
-       └── 6. Updates request.lastReminderAt = LocalDateTime.now()
-```
+### 👷 Employee Portal
+* **Demo Logins**:
+  * Kumar: `kumar@company.com` (Password: `kumar123`)
+  * Ravi: `ravi@company.com` (Password: `ravi123`)
+  * Arun: `arun@company.com` (Password: `arun123`)
+  * Priya: `priya@company.com` (Password: `priya123`)
+  * *(Or register any new employee directly on the login screen)*
+* **Capabilities**:
+  * **Personalized View**: Only sees tasks specifically assigned to them.
+  * Immediate status updates (`OPEN` → `IN_PROGRESS` → `COMPLETED`).
+  * Urgent alert banner whenever any of their assigned tasks becomes overdue.
 
 ---
 
-## 4. Technologies
+## 2. Autonomous Date & Time Watcher Agent
 
-| Layer | Technology |
-|---|---|
-| **Frontend** | React 18, Vite, JavaScript (ES6+), Axios, Vanilla CSS |
-| **Backend** | Java 23 / 17+, Spring Boot 3.3.4 |
-| **Web Framework** | Spring Web (RESTful Controllers, CORS, Exception Handling) |
-| **Data Access** | Spring Data JPA / Hibernate |
-| **Automation** | Spring Scheduler (`@EnableScheduling`, `@Scheduled`) |
-| **Database** | MySQL 8.x / 9.x |
-| **Testing** | JUnit 5, Mockito, Spring Test (MockMvc) |
+### How the Agent Works:
+1. **Periodic Deadline Scanning**:
+   The agent runs autonomously in the background via `@Scheduled` every 30 seconds (configurable via `scheduler.overdue-check-rate=30000`).
+2. **Date & Time Comparison**:
+   A task is identified as overdue the moment the current system clock passes the deadline:
+   $$\text{status} = \text{"OPEN"} \land \text{dueDateTime} < \text{LocalDateTime.now()}$$
+3. **Dual Notification & Email Delivery**:
+   * Sends an automated email to the **Assignee's email**.
+   * CCs the **Accountant** (`kathirvelpalani294@gmail.com`).
+   * Records the notice in the `reminders` table and UI agent log.
+4. **Duplicate Prevention**:
+   Prevents spamming repeated emails for the same task.
 
 ---
 
-## 5. Database Setup
+## 3. Configuring Real Gmail Sending
 
-### 1. Create MySQL Database
-Run in MySQL command line or MySQL Workbench:
-```sql
-CREATE DATABASE IF NOT EXISTS accountant_tracker;
-USE accountant_tracker;
-```
-
-### 2. Schema Definition (Auto-generated by Hibernate or run `database/schema.sql`)
-```sql
-CREATE TABLE IF NOT EXISTS requests (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    client_name VARCHAR(255) NOT NULL,
-    assignee VARCHAR(255) NOT NULL,
-    due_date DATE NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'OPEN',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_reminder_at TIMESTAMP NULL
-);
-
-CREATE TABLE IF NOT EXISTS reminders (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    request_id BIGINT NOT NULL,
-    request_title VARCHAR(255) NOT NULL,
-    client_name VARCHAR(255) NOT NULL,
-    assignee VARCHAR(255) NOT NULL,
-    due_date DATE NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    message VARCHAR(1000) NOT NULL,
-    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 3. Configure Database Credentials
-Configure in `backend/src/main/resources/application.properties` (or via environment variables):
+In `backend/src/main/resources/application.properties`:
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/accountant_tracker?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-spring.datasource.username=${DB_USERNAME:root}
-spring.datasource.password=${DB_PASSWORD:YOUR_PASSWORD}
+# Spring Mail (Gmail SMTP)
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=kathirvelpalani294@gmail.com
+spring.mail.password=YOUR_16_CHARACTER_GMAIL_APP_PASSWORD
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
 ```
+
+> **How to generate a Gmail App Password:**
+> 1. Go to your Google Account: [https://myaccount.google.com/security](https://myaccount.google.com/security)
+> 2. Ensure 2-Step Verification is ON.
+> 3. Search for **"App passwords"** ([https://myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)).
+> 4. Create a new App Password (name it "Accounts Tracker") and paste the 16 characters into `spring.mail.password`.
+>
+> *(Note: If the password is not yet configured, the system automatically runs in safe simulation mode, printing full email headers to the console without crashing).*
 
 ---
 
-## 6. How to Run
+## 4. How to Run Locally
 
-### Prerequisites
-* Java JDK 17+ (JDK 23 supported)
-* Apache Maven 3.8+
-* Node.js v18+ and npm
-* Running MySQL service
-
-### Step 1: Start Backend (Spring Boot)
-Open a terminal in the `backend/` directory:
+### Start Backend
 ```bash
 cd backend
 mvn clean spring-boot:run
 ```
-Backend will start on `http://localhost:8080`.
+*(Runs on `http://localhost:8080`)*
 
-To run backend tests:
-```bash
-mvn test
-```
-
-### Step 2: Start Frontend (React + Vite)
-Open a second terminal in the `frontend/` directory:
+### Start Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Frontend will be available at `http://localhost:5173`.
+*(Runs on `http://localhost:5173`)*
 
 ---
 
-## 7. REST API Documentation
+## 5. API Endpoints
 
-Base URL: `http://localhost:8080/api`
+### Authentication
+* `POST /api/auth/login`: `{ "email": "...", "password": "..." }`
+* `POST /api/auth/register`: `{ "name": "...", "email": "...", "password": "...", "role": "EMPLOYEE" }`
+* `GET /api/auth/employees`: Returns list of all registered employees for task assignment.
 
-### 1. Create Request
-* **Endpoint**: `POST /api/requests`
-* **Status**: `201 CREATED`
-* **Request Body**:
-```json
-{
-  "title": "GST Filing",
-  "clientName": "Demo Company A",
-  "assignee": "Kumar",
-  "dueDate": "2026-09-30",
-  "status": "OPEN"
-}
-```
-* **Response**:
-```json
-{
-  "id": 1,
-  "title": "GST Filing",
-  "clientName": "Demo Company A",
-  "assignee": "Kumar",
-  "dueDate": "2026-09-30",
-  "status": "OPEN",
-  "createdAt": "2026-09-29T09:50:00",
-  "lastReminderAt": null,
-  "overdue": false
-}
-```
+### Tasks
+* `POST /api/requests`: Create task with `dueDateTime`, `clientName`, `title`, `assignee`, `assigneeEmail`, `accountantEmail`.
+* `GET /api/requests?email=...&role=...`: Fetches all tasks (for Accountant) or assigned tasks (for Employee).
+* `PUT /api/requests/{id}/status`: `{ "status": "IN_PROGRESS" }`
+* `GET /api/requests/sorted`: Returns tasks sorted by deadline ascending.
+* `GET /api/requests/overdue`: Returns currently overdue open tasks.
 
-### 2. Get All Requests
-* **Endpoint**: `GET /api/requests`
-* **Status**: `200 OK`
-* **Response**: Array of Request objects.
-
-### 3. Get Request By ID
-* **Endpoint**: `GET /api/requests/{id}`
-* **Status**: `200 OK` (or `404 NOT FOUND` if ID does not exist)
-
-### 4. Update Request Status
-* **Endpoint**: `PUT /api/requests/{id}/status`
-* **Status**: `200 OK` (or `400 BAD REQUEST` / `404 NOT FOUND`)
-* **Request Body**:
-```json
-{
-  "status": "IN_PROGRESS"
-}
-```
-
-### 5. Get Sorted Requests (Ascending Due Date)
-* **Endpoint**: `GET /api/requests/sorted`
-* **Status**: `200 OK`
-* **Description**: Returns requests sorted chronologically by due date.
-
-### 6. Get Overdue Requests
-* **Endpoint**: `GET /api/requests/overdue`
-* **Status**: `200 OK`
-* **Description**: Returns all requests where `status == 'OPEN'` and `dueDate < today`.
-* **Sample Response**:
-```json
-[
-  {
-    "id": 2,
-    "title": "TDS Report",
-    "clientName": "Demo Company B",
-    "assignee": "Ravi",
-    "dueDate": "2026-09-28",
-    "status": "OPEN",
-    "overdue": true
-  }
-]
-```
-
-### 7. Get Reminders Log
-* **Endpoint**: `GET /api/reminders`
-* **Status**: `200 OK`
-* **Description**: Returns all automated reminders generated by the scheduler.
-
-### 8. Trigger Scheduler Manually
-* **Endpoint**: `POST /api/scheduler/trigger`
-* **Status**: `200 OK`
-* **Description**: Forces immediate execution of the overdue check without waiting for the cron timer.
-
-### 9. Seed Sample Demo Data
-* **Endpoint**: `POST /api/requests/seed`
-* **Status**: `200 OK`
-* **Description**: Populates 5 standard test records including overdue requests.
-
----
-
-## 8. Automation & Overdue Logic
-
-### Overdue Business Rule
-As strictly required:
-$$\text{Overdue} \iff (\text{status} = \text{"OPEN"}) \land (\text{due\_date} < \text{today})$$
-
-In Java (`RequestService.java`):
-```java
-LocalDate today = LocalDate.now();
-request.getStatus().equalsIgnoreCase("OPEN") && request.getDueDate().isBefore(today);
-```
-* Requests with status `IN_PROGRESS` or `COMPLETED` are **NOT** considered overdue.
-
-### Scheduler Configuration
-In `application.properties`:
-```properties
-# Interval in milliseconds (60000 = 60 seconds)
-scheduler.overdue-check-rate=60000
-scheduler.enabled=true
-```
-The scheduler executes the following reminder format:
-```
-========================================
-OVERDUE REQUEST REMINDER
-Request: TDS Report
-Client: Demo Company B
-Assigned To: Ravi
-Due Date: 2026-09-28
-Status: OPEN
-This request is overdue.
-========================================
-```
-
-### Duplicate Prevention Mechanism
-Whenever a reminder is generated, `request.setLastReminderAt(LocalDateTime.now())` is updated. 
-Before generating a reminder, the service checks:
-```java
-if (request.getLastReminderAt() != null && request.getLastReminderAt().toLocalDate().isEqual(today)) {
-    // Skip duplicate reminder for today
-    continue;
-}
-```
-This guarantees that an assignee is notified at most once per calendar day per overdue task.
-
----
-
-## 9. Important Business Assumptions
-
-1. **No Authentication / Login**: Per assignment guidelines, authentication is omitted for simplicity. The user acts as an accounting team member/manager.
-2. **Demo Assignees**: Four demo accountants are provided: `Kumar`, `Ravi`, `Arun`, and `Priya`.
-3. **Internal Reminders**: Reminders are logged to the backend console and persisted to the `reminders` table/dashboard UI, avoiding mandatory external SMTP/email server dependencies.
-4. **Dummy Client Data**: All client names and company titles are mock demo data.
-
----
-
-## 10. What Works
-
-- [x] Complete REST API with Spring Boot 3 & Java
-- [x] MySQL database persistence with Spring Data JPA
-- [x] Create request with form validation (no empty requests allowed)
-- [x] View requests in responsive table with summary counter cards
-- [x] Live status update (`OPEN` → `IN_PROGRESS` → `COMPLETED`) via backend API
-- [x] Sorting by due date (ascending) via backend endpoint `/api/requests/sorted`
-- [x] Strict overdue identification logic (`OPEN` + `dueDate < today`)
-- [x] Visible `⚠️ OVERDUE` text tag and row highlight
-- [x] Configurable automated Spring Scheduler (`@Scheduled`)
-- [x] Assignee-targeted reminders logged to console and stored in DB
-- [x] Duplicate reminder prevention per day
-- [x] Comprehensive backend unit and integration test suite (14 passing tests)
-
----
-
-## 11. What I Would Improve in Production
-
-1. **Authentication & RBAC**: Integrate Spring Security with JWT/OAuth2 to authenticate accountants and managers, ensuring assignees only see or modify their assigned tasks.
-2. **Real Email Notifications**: Integrate JavaMailSender / AWS SES / SendGrid with HTML templates for email alerts.
-3. **Pagination & Search**: Add Spring Data `Pageable` on `GET /api/requests` for large datasets with search by client name or assignee.
-4. **Database Migrations**: Add Flyway or Liquibase for production schema versioning.
-5. **Audit Logging**: Maintain an audit trail of who changed task status and when.
-6. **Webhooks / Slack Integration**: Push alerts to a team Slack channel when tasks become overdue.
-
----
-
-## 12. 15-Minute Technical Walkthrough Guide
-
-Use these concise talking points if questioned by the evaluator:
-
-1. **Why this architecture?**
-   * *Answer*: Layered architecture (Controller → Service → Repository → Entity) separates concerns cleanly. Spring Data JPA handles persistence without boilerplate SQL, and React + Vite offers immediate reactivity.
-2. **How does request creation work?**
-   * *Answer*: The React form validates inputs and posts JSON to `POST /api/requests`. Spring Boot validates required annotations (`@NotBlank`, `@NotNull`), sets `createdAt = now` and `status = OPEN`, and saves to MySQL.
-3. **How is the request assigned?**
-   * *Answer*: The creator selects an assignee from the dropdown (Kumar, Ravi, Arun, Priya). The assignee is stored in the `assignee` column of the `requests` table.
-4. **Who receives the reminder?**
-   * *Answer*: The reminder is addressed specifically to the `assignee` field of the overdue request.
-5. **How do you identify overdue requests?**
-   * *Answer*: By evaluating `status == 'OPEN' && dueDate < LocalDate.now()`. If a task is `IN_PROGRESS` or `COMPLETED`, it is not overdue.
-6. **How does Spring Scheduler work?**
-   * *Answer*: `@EnableScheduling` activates the background task executor. `@Scheduled(fixedRateString = "${scheduler.overdue-check-rate:60000}")` triggers `checkAndGenerateOverdueReminders()` every 60 seconds.
-7. **Why choose MySQL?**
-   * *Answer*: Relational integrity, ACID compliance, and standard SQL support for accounting records.
-8. **How does the frontend communicate with the backend?**
-   * *Answer*: Via an Axios service module targeting `http://localhost:8080/api`, with full CORS support enabled in Spring Boot.
-9. **What happens if the request is completed?**
-   * *Answer*: Updating status to `COMPLETED` immediately disqualifies the request from the overdue filter and scheduler check.
-10. **How would you make a small code change (e.g., adding `CANCELLED` status)?**
-    * *Answer*: Add `"CANCELLED"` to `VALID_STATUSES` in `RequestService.java`, add `"CANCELLED"` to `STATUS_OPTIONS` in `StatusDropdown.jsx` and `RequestForm.jsx`.
+### Agent
+* `POST /api/scheduler/trigger`: Forces immediate deadline scan by the Watcher Agent.
+* `GET /api/reminders`: Retrieves log of agent-generated alerts.
