@@ -24,7 +24,8 @@ public class EmailService {
     private String mailPassword;
 
     /**
-     * Send overdue email alert to the Assignee and CC the Accountant (kathirvelpalani294@gmail.com).
+     * Send overdue email alert to the Accountant (kathirvelpalani294@gmail.com)
+     * and the Assignee.
      */
     public boolean sendOverdueAlert(Request request) {
         String assigneeEmail = request.getAssigneeEmail();
@@ -40,63 +41,80 @@ public class EmailService {
         String subject = String.format("🚨 [OVERDUE ALERT] Task '%s' for '%s' is Overdue",
                 request.getTitle(), request.getClientName());
 
-        String content = String.format(
+        String accountantContent = String.format(
                 "====================================================\n" +
-                "AUTONOMOUS WATCHER AGENT: OVERDUE NOTIFICATION\n" +
+                "AUTONOMOUS WATCHER AGENT: SUPERVISOR OVERDUE NOTICE\n" +
                 "====================================================\n\n" +
-                "Dear %s,\n\n" +
-                "Your assigned task has crossed its scheduled deadline.\n\n" +
+                "Hello Accountant / Supervisor (%s),\n\n" +
+                "This is an automated alert from your Date & Time Watcher Agent.\n" +
+                "The following task assigned to %s has crossed its deadline:\n\n" +
                 "Task Details:\n" +
                 "----------------------------------------------------\n" +
-                "• Title: %s\n" +
+                "• Task Title: %s\n" +
                 "• Client: %s\n" +
                 "• Assignee: %s <%s>\n" +
-                "• Accountant / Manager: %s\n" +
-                "• Due Date & Time: %s\n" +
+                "• Deadline (Date & Time): %s\n" +
                 "• Current Status: %s\n" +
                 "----------------------------------------------------\n\n" +
-                "ACTION REQUIRED: Please immediately complete the task or update its status in the Accountant Request Tracker.\n\n" +
-                "Sent automatically by the Date & Time Watcher Agent.",
+                "Please follow up with the assignee to ensure completion.\n\n" +
+                "Accountant Request Tracker • Autonomous Agent",
+                accountantEmail,
                 request.getAssignee(),
                 request.getTitle(),
                 request.getClientName(),
                 request.getAssignee(),
                 assigneeEmail,
-                accountantEmail,
                 request.getDueDateTime(),
                 request.getStatus()
         );
 
-        // Always log to console for visibility
+        // Always log to console
         logger.info("\n=======================================================\n" +
                     "📧 AGENT DISPATCHING EMAIL:\n" +
                     "From: {}\n" +
-                    "To: {}\n" +
-                    "Cc (Accountant): {}\n" +
+                    "To (Accountant): {}\n" +
+                    "Assignee: {} <{}>\n" +
                     "Subject: {}\n" +
                     "Content:\n{}\n" +
                     "=======================================================",
-                fromEmail, assigneeEmail, accountantEmail, subject, content);
+                fromEmail, accountantEmail, request.getAssignee(), assigneeEmail, subject, accountantContent);
 
-        // Attempt real Gmail SMTP dispatch if mailSender is available and password is set
+        // Attempt real Gmail SMTP dispatch
         if (mailSender != null && mailPassword != null && !mailPassword.isBlank() && !mailPassword.contains("YOUR_16_DIGIT")) {
+            boolean accountantSent = false;
             try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setFrom(fromEmail);
-                message.setTo(assigneeEmail);
-                message.setCc(accountantEmail);
-                message.setSubject(subject);
-                message.setText(content);
+                // Send primary notification to Accountant
+                SimpleMailMessage accountantMsg = new SimpleMailMessage();
+                accountantMsg.setFrom(fromEmail);
+                accountantMsg.setTo(accountantEmail);
+                accountantMsg.setSubject(subject);
+                accountantMsg.setText(accountantContent);
 
-                mailSender.send(message);
-                logger.info("✅ Live email successfully sent via Gmail SMTP to {} (CC: {})", assigneeEmail, accountantEmail);
-                return true;
+                mailSender.send(accountantMsg);
+                logger.info("✅ Live email successfully sent to Accountant at {}", accountantEmail);
+                accountantSent = true;
             } catch (Exception ex) {
-                logger.warn("⚠️ Could not send live email via SMTP (Check App Password): {}", ex.getMessage());
-                return false;
+                logger.error("⚠️ Failed to send email to Accountant ({}): {}", accountantEmail, ex.getMessage());
             }
+
+            // Also attempt to notify assignee if different from accountant and looks like a valid address
+            if (!assigneeEmail.equalsIgnoreCase(accountantEmail) && assigneeEmail.contains("@") && !assigneeEmail.endsWith("@company.com")) {
+                try {
+                    SimpleMailMessage assigneeMsg = new SimpleMailMessage();
+                    assigneeMsg.setFrom(fromEmail);
+                    assigneeMsg.setTo(assigneeEmail);
+                    assigneeMsg.setSubject("🚨 [URGENT] Your assigned task is Overdue: " + request.getTitle());
+                    assigneeMsg.setText(accountantContent.replace("Hello Accountant / Supervisor", "Dear " + request.getAssignee()));
+                    mailSender.send(assigneeMsg);
+                    logger.info("✅ Live email successfully sent to Assignee at {}", assigneeEmail);
+                } catch (Exception ex) {
+                    logger.warn("⚠️ Could not deliver to Assignee email ({}) : {}", assigneeEmail, ex.getMessage());
+                }
+            }
+
+            return accountantSent;
         } else {
-            logger.info("ℹ️ Real email skipped: Enter your 16-character Gmail App Password in application.properties to enable live transmission.");
+            logger.info("ℹ️ Real email skipped: Gmail App Password not yet configured.");
             return false;
         }
     }
