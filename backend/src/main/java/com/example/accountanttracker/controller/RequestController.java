@@ -60,6 +60,21 @@ public class RequestController {
     }
 
     /**
+     * Delete request by ID (Accountant only).
+     * DELETE /api/requests/{id}
+     */
+    @DeleteMapping("/requests/{id}")
+    public ResponseEntity<?> deleteRequest(@PathVariable Long id) {
+        try {
+            requestService.deleteRequest(id);
+            return ResponseEntity.ok(Map.of("message", "Task deleted successfully", "id", id));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Collections.singletonMap("error", ex.getMessage()));
+        }
+    }
+
+    /**
      * Update request status.
      * PUT /api/requests/{id}/status
      */

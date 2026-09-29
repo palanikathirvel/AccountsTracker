@@ -132,35 +132,60 @@ public class RequestServiceTest {
     @Test
     void testGetOverdueRequests_Detection() {
         LocalDateTime past = LocalDateTime.now().minusHours(2);
-        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", "ravi@company.com", past, "OPEN");
-        overdue.setId(2L);
+        Request overdueOpen = new Request("TDS Report", "Demo Company B", "Ravi", "ravi@company.com", past, "OPEN");
+        overdueOpen.setId(2L);
+        Request overdueInProgress = new Request("Audit Filing", "Demo Company C", "Kumar", "kumar@company.com", past, "IN_PROGRESS");
+        overdueInProgress.setId(3L);
 
-        when(requestRepository.findByStatusIgnoreCaseAndDueDateTimeBefore(eq("OPEN"), any(LocalDateTime.class)))
-                .thenReturn(List.of(overdue));
+        when(requestRepository.findOverdueRequests(any(LocalDateTime.class)))
+                .thenReturn(List.of(overdueOpen, overdueInProgress));
 
         List<Request> result = requestService.getOverdueRequests();
 
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
         assertEquals("TDS Report", result.get(0).getTitle());
         assertTrue(result.get(0).isOverdue());
+        assertEquals("Audit Filing", result.get(1).getTitle());
+        assertTrue(result.get(1).isOverdue());
     }
 
     @Test
     void testCheckAndGenerateOverdueReminders_DispatchesEmailAndSaves() {
         LocalDateTime past = LocalDateTime.now().minusHours(2);
-        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", "ravi@company.com", past, "OPEN");
-        overdue.setId(2L);
-        overdue.setLastReminderAt(null);
+        Request overdueOpen = new Request("TDS Report", "Demo Company B", "Ravi", "ravi@company.com", past, "OPEN");
+        overdueOpen.setId(2L);
+        overdueOpen.setLastReminderAt(null);
 
-        when(requestRepository.findByStatusIgnoreCaseAndDueDateTimeBefore(eq("OPEN"), any(LocalDateTime.class)))
-                .thenReturn(List.of(overdue));
+        Request overdueInProgress = new Request("GST Reconciliation", "Demo Company A", "Kumar", "kumar@company.com", past, "IN_PROGRESS");
+        overdueInProgress.setId(3L);
+        overdueInProgress.setLastReminderAt(null);
+
+        when(requestRepository.findOverdueRequests(any(LocalDateTime.class)))
+                .thenReturn(List.of(overdueOpen, overdueInProgress));
 
         int count = requestService.checkAndGenerateOverdueReminders();
 
-        assertEquals(1, count);
-        verify(emailService, times(1)).sendOverdueAlert(overdue);
-        verify(reminderRepository, times(1)).save(any(Reminder.class));
-        verify(requestRepository, times(1)).save(overdue);
-        assertNotNull(overdue.getLastReminderAt());
+        assertEquals(2, count);
+        verify(emailService, times(1)).sendOverdueAlert(overdueOpen);
+        verify(emailService, times(1)).sendOverdueAlert(overdueInProgress);
+        verify(reminderRepository, times(2)).save(any(Reminder.class));
+        verify(requestRepository, times(1)).save(overdueOpen);
+        verify(requestRepository, times(1)).save(overdueInProgress);
+        assertNotNull(overdueOpen.getLastReminderAt());
+        assertNotNull(overdueInProgress.getLastReminderAt());
+    }
+
+    @Test
+    void testUpdateStatus_ResetsLastReminderAt() {
+        Request req = new Request("Payroll Audit", "Client X", "Kumar", "kumar@company.com", LocalDateTime.now().minusHours(1), "OPEN");
+        req.setId(10L);
+        req.setLastReminderAt(LocalDateTime.now().minusMinutes(30));
+
+        when(requestRepository.findById(10L)).thenReturn(Optional.of(req));
+        when(requestRepository.save(any(Request.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Request updated = requestService.updateStatus(10L, "IN_PROGRESS");
+        assertEquals("IN_PROGRESS", updated.getStatus());
+        assertNull(updated.getLastReminderAt());
     }
 }

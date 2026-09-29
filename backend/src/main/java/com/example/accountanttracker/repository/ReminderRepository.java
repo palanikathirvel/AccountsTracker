@@ -13,4 +13,10 @@ public interface ReminderRepository extends JpaRepository<Reminder, Long> {
      * Retrieve all reminders ordered by newest first.
      */
     List<Reminder> findAllByOrderByGeneratedAtDesc();
+
+    /**
+     * Delete reminders associated with a request ID.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByRequestId(Long requestId);
 }

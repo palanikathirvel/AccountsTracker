@@ -8,10 +8,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Autonomous Date & Time Watcher Agent:
- * Periodically monitors task deadlines. If the current date and time passes the task deadline,
- * the agent automatically generates an overdue notice, dispatches email alerts to the assignee,
- * and notifies the accountant (kathirvelpalani294@gmail.com).
+ * Autonomous Agentic AI Overdue Watcher:
+ * Continuously runs 24/7 in the background. As soon as a task crosses its scheduled deadline,
+ * this agentic AI autonomously passes the task context to Google Gemini API to draft a dynamic,
+ * urgent compliance notification, and dispatches the live email to both the Assignee and Accountant.
  */
 @Component
 @ConditionalOnProperty(name = "scheduler.enabled", havingValue = "true", matchIfMissing = true)
@@ -26,14 +26,13 @@ public class OverdueRequestScheduler {
     }
 
     /**
-     * Agent heartbeat loop running on configured rate (default: every 30 seconds).
+     * Agentic AI heartbeat loop running continuously (every 15 seconds).
      */
-    @Scheduled(fixedRateString = "${scheduler.overdue-check-rate:30000}")
+    @Scheduled(fixedRateString = "${scheduler.overdue-check-rate:15000}")
     public void runOverdueCheck() {
-        logger.debug("🤖 [OVERDUE WATCHER AGENT] Scanning tasks for expired deadlines...");
         int count = requestService.checkAndGenerateOverdueReminders();
         if (count > 0) {
-            logger.info("🤖 [OVERDUE WATCHER AGENT] Alerted {} overdue task(s). Notifications & emails dispatched.", count);
+            logger.info("🤖 [AGENTIC AI OVERDUE WATCHER] Dispatched Gemini AI email reminders for {} overdue task(s).", count);
         }
     }
 }

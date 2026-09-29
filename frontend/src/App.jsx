@@ -139,6 +139,21 @@ export default function App() {
     return res;
   };
 
+  // Delete task handler (Accountant only)
+  const handleDeleteRequest = async (request) => {
+    if (!window.confirm(`Are you sure you want to delete task #${request.id} ("${request.title}") for client "${request.clientName}"?`)) {
+      return;
+    }
+    try {
+      await requestService.deleteRequest(request.id);
+      showMessage(`Task #${request.id} deleted successfully!`, 'success');
+      await fetchRequests();
+      await fetchReminders();
+    } catch (err) {
+      showMessage('Failed to delete task: ' + (err.response?.data?.error || err.message), 'error');
+    }
+  };
+
   // Summary counts
   const summary = useMemo(() => {
     let total = requests.length;
@@ -149,7 +164,7 @@ export default function App() {
     const now = new Date();
 
     requests.forEach((r) => {
-      const isOverdue = r.status === 'OPEN' && r.dueDateTime && new Date(r.dueDateTime) < now;
+      const isOverdue = (r.status === 'OPEN' || r.status === 'IN_PROGRESS') && r.dueDateTime && new Date(r.dueDateTime) < now;
       if (isOverdue) overdue++;
       if (r.status === 'OPEN') open++;
       else if (r.status === 'IN_PROGRESS') inProgress++;
@@ -165,7 +180,7 @@ export default function App() {
     return requests.filter((r) => {
       if (activeFilter === 'ALL') return true;
       if (activeFilter === 'OVERDUE') {
-        return r.status === 'OPEN' && r.dueDateTime && new Date(r.dueDateTime) < now;
+        return (r.status === 'OPEN' || r.status === 'IN_PROGRESS') && r.dueDateTime && new Date(r.dueDateTime) < now;
       }
       return r.status === activeFilter;
     });
@@ -352,13 +367,14 @@ export default function App() {
           loading={loading}
           onStatusChange={handleStatusChange}
           currentUser={currentUser}
+          onDeleteRequest={handleDeleteRequest}
         />
       </section>
 
       {/* Footer */}
       <footer className="app-footer">
         <p>
-          Accountant: <strong>kathirvelpalani294@gmail.com</strong> • Watcher Agent: Spring Scheduler (@Scheduled 30s) • Java 23 / Spring Boot 3 • MySQL
+          Accountant: <strong>kathirvelpalani294@gmail.com</strong> • Autonomous Watcher Agent (@Scheduled 30s with Gemini Generative AI) • Java 23 / Spring Boot 3 • MySQL
         </p>
       </footer>
     </div>

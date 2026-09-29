@@ -70,6 +70,12 @@ export const requestService = {
     const response = await api.post('/scheduler/trigger');
     return response.data;
   },
+
+  // Delete task (Accountant only)
+  deleteRequest: async (id) => {
+    const response = await api.delete(`/requests/${id}`);
+    return response.data;
+  },
 };
 
 export default requestService;

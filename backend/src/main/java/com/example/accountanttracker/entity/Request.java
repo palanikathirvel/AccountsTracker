@@ -82,14 +82,15 @@ public class Request {
 
     /**
      * Exact business rule for overdue:
-     * Request is overdue if status is OPEN and the current time has crossed the dueDateTime deadline.
+     * Request is overdue if status is OPEN or IN_PROGRESS and the current time has crossed the dueDateTime deadline.
      */
     @Transient
     public boolean isOverdue() {
         if (this.dueDateTime == null || this.status == null) {
             return false;
         }
-        return "OPEN".equalsIgnoreCase(this.status) && this.dueDateTime.isBefore(LocalDateTime.now());
+        return ("OPEN".equalsIgnoreCase(this.status) || "IN_PROGRESS".equalsIgnoreCase(this.status))
+                && this.dueDateTime.isBefore(LocalDateTime.now());
     }
 
     // Date helper for compatibility

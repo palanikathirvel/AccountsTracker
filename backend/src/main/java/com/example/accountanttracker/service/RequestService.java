@@ -9,6 +9,7 @@ import com.example.accountanttracker.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,9 @@ public class RequestService {
     private static final Logger logger = LoggerFactory.getLogger(RequestService.class);
 
     private static final List<String> VALID_STATUSES = Arrays.asList("OPEN", "IN_PROGRESS", "COMPLETED");
+
+    @Value("${scheduler.reminder-cooldown-minutes:10}")
+    private int reminderCooldownMinutes;
 
     private final RequestRepository requestRepository;
     private final ReminderRepository reminderRepository;
@@ -142,7 +146,11 @@ public class RequestService {
             throw new IllegalArgumentException("Invalid status: " + status + ". Allowed values: " + VALID_STATUSES);
         }
 
-        request.setStatus(upperStatus);
+        if (!upperStatus.equals(request.getStatus())) {
+            request.setStatus(upperStatus);
+            // Reset lastReminderAt when status changes so that newly in-progress or reopened overdue tasks receive timely reminder
+            request.setLastReminderAt(null);
+        }
         return requestRepository.save(request);
     }
 
@@ -154,17 +162,17 @@ public class RequestService {
     }
 
     /**
-     * Get overdue requests: status is OPEN and dueDateTime is strictly before now.
+     * Get overdue requests: status is OPEN or IN_PROGRESS and dueDateTime is strictly before now.
      */
     public List<Request> getOverdueRequests() {
         LocalDateTime now = LocalDateTime.now();
-        return requestRepository.findByStatusIgnoreCaseAndDueDateTimeBefore("OPEN", now);
+        return requestRepository.findOverdueRequests(now);
     }
 
     /**
      * Autonomous Agent: Check for overdue requests and notify both the Assignee and the Accountant.
-     * Also dispatches email alert and records reminder.
-     * Prevents duplicate alerts for the same deadline day.
+     * Also dispatches email alert from Accountant to Assignee (and supervisor copy to Accountant).
+     * Prevents duplicate alerts for the same deadline day (2-hour cooldown).
      */
     @Transactional
     public int checkAndGenerateOverdueReminders() {
@@ -173,20 +181,36 @@ public class RequestService {
         int generatedCount = 0;
 
         for (Request request : overdueRequests) {
-            // Avoid spamming duplicate reminders: skip if reminded in the last 2 hours
-            if (request.getLastReminderAt() != null && request.getLastReminderAt().isAfter(now.minusHours(2))) {
+            // Avoid spamming duplicate reminders: skip if reminded within configured cooldown window (default 10 mins)
+            if (request.getLastReminderAt() != null && request.getLastReminderAt().isAfter(now.minusMinutes(reminderCooldownMinutes))) {
                 continue;
             }
 
+            // Ensure email addresses are populated
+            if (request.getAssigneeEmail() == null || request.getAssigneeEmail().isBlank()) {
+                if (request.getAssignee() != null) {
+                    userRepository.findByEmailIgnoreCase(request.getAssignee().toLowerCase() + "@company.com")
+                            .ifPresentOrElse(
+                                    u -> request.setAssigneeEmail(u.getEmail()),
+                                    () -> request.setAssigneeEmail(request.getAssignee().toLowerCase().replaceAll("\\s+", "") + "@company.com")
+                            );
+                }
+            }
+
+            if (request.getAccountantEmail() == null || request.getAccountantEmail().isBlank()) {
+                request.setAccountantEmail("kathirvelpalani294@gmail.com");
+            }
+
             String reminderMessage = String.format(
-                    "OVERDUE REQUEST REMINDER\n" +
+                    "OVERDUE REQUEST REMINDER (%s)\n" +
                     "Request: %s\n" +
                     "Client: %s\n" +
                     "Assigned To: %s <%s>\n" +
                     "Accountant Email: %s\n" +
                     "Deadline: %s\n" +
                     "Status: %s\n" +
-                    "This request has crossed its scheduled date and time.",
+                    "This request has crossed its scheduled date and time. Reminder dispatched to assignee from accountant.",
+                    request.getStatus(),
                     request.getTitle(),
                     request.getClientName(),
                     request.getAssignee(),
@@ -201,17 +225,23 @@ public class RequestService {
                         "Task: {} | Client: {}\n" +
                         "Assignee: {} ({})\n" +
                         "Accountant: {}\n" +
+                        "Status: {}\n" +
                         "Deadline: {} | Current Time: {}",
                     request.getTitle(),
                     request.getClientName(),
                     request.getAssignee(),
                     request.getAssigneeEmail(),
                     request.getAccountantEmail(),
+                    request.getStatus(),
                     request.getDueDateTime(),
                     now);
 
-            // Dispatch Email via EmailService (sends to assignee, CCs accountant)
-            emailService.sendOverdueAlert(request);
+            // Dispatch Email via EmailService with Gemini Generative AI drafting
+            try {
+                emailService.sendOverdueAlert(request);
+            } catch (Exception ex) {
+                logger.error("❌ Failed to dispatch overdue alert email for task '{}': {}", request.getTitle(), ex.getMessage(), ex);
+            }
 
             // Save Reminder entity
             Reminder reminder = new Reminder(
@@ -240,5 +270,60 @@ public class RequestService {
      */
     public List<Reminder> getAllReminders() {
         return reminderRepository.findAllByOrderByGeneratedAtDesc();
+    }
+
+    /**
+     * Dispatch an AI-generated or custom reminder email and log it.
+     */
+    @Transactional
+    public Reminder sendAiReminder(Long requestId, String subject, String body) {
+        Request request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Request not found with id: " + requestId));
+
+        // Ensure email fields
+        if (request.getAssigneeEmail() == null || request.getAssigneeEmail().isBlank()) {
+            if (request.getAssignee() != null) {
+                userRepository.findByEmailIgnoreCase(request.getAssignee().toLowerCase() + "@company.com")
+                        .ifPresentOrElse(
+                                u -> request.setAssigneeEmail(u.getEmail()),
+                                () -> request.setAssigneeEmail(request.getAssignee().toLowerCase().replaceAll("\\s+", "") + "@company.com")
+                        );
+            }
+        }
+        if (request.getAccountantEmail() == null || request.getAccountantEmail().isBlank()) {
+            request.setAccountantEmail("kathirvelpalani294@gmail.com");
+        }
+
+        emailService.sendAiEmail(request, subject, body);
+
+        LocalDateTime now = LocalDateTime.now();
+        request.setLastReminderAt(now);
+        requestRepository.save(request);
+
+        String logMsg = String.format("🤖 [AI REMINDER SENT]\nSubject: %s\n\n%s", subject, body);
+        Reminder reminder = new Reminder(
+                request.getId(),
+                request.getTitle(),
+                request.getClientName(),
+                request.getAssignee(),
+                request.getDueDateTime() != null ? request.getDueDateTime().toLocalDate() : now.toLocalDate(),
+                request.getStatus(),
+                logMsg
+        );
+        return reminderRepository.save(reminder);
+    }
+
+    /**
+     * Delete request by ID (Accountant action).
+     * Also removes associated reminders for this task.
+     */
+    @Transactional
+    public void deleteRequest(Long id) {
+        if (!requestRepository.existsById(id)) {
+            throw new IllegalArgumentException("Request not found with id: " + id);
+        }
+        reminderRepository.deleteByRequestId(id);
+        requestRepository.deleteById(id);
+        logger.info("🗑️ Deleted request #{} and cleaned up associated reminders.", id);
     }
 }

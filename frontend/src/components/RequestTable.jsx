@@ -1,7 +1,7 @@
 import React from 'react';
 import StatusDropdown from './StatusDropdown';
 
-export default function RequestTable({ requests, loading, onStatusChange, currentUser }) {
+export default function RequestTable({ requests, loading, onStatusChange, currentUser, onDeleteRequest }) {
   if (loading) {
     return (
       <div className="table-loading">
@@ -42,11 +42,11 @@ export default function RequestTable({ requests, loading, onStatusChange, curren
     }
   };
 
-  // Check if overdue by comparing exact timestamp
+  // Check if overdue by comparing exact timestamp (both OPEN and IN_PROGRESS)
   const checkIfOverdue = (req) => {
     if (req.overdue !== undefined) return req.overdue;
     if (!req.dueDateTime || !req.status) return false;
-    return req.status === 'OPEN' && new Date(req.dueDateTime) < new Date();
+    return (req.status === 'OPEN' || req.status === 'IN_PROGRESS') && new Date(req.dueDateTime) < new Date();
   };
 
   return (
@@ -63,7 +63,7 @@ export default function RequestTable({ requests, loading, onStatusChange, curren
               <th>Deadline (Date & Time)</th>
               <th>Status</th>
               <th>Overdue Indicator</th>
-              <th style={{ width: '180px' }}>Update Status</th>
+              <th style={{ width: '220px' }}>Actions & Status</th>
             </tr>
           </thead>
           <tbody>
@@ -102,11 +102,23 @@ export default function RequestTable({ requests, loading, onStatusChange, curren
                     )}
                   </td>
                   <td className="cell-actions">
-                    <StatusDropdown
-                      currentStatus={req.status}
-                      requestId={req.id}
-                      onStatusChange={onStatusChange}
-                    />
+                    <div className="actions-cluster">
+                      <StatusDropdown
+                        currentStatus={req.status}
+                        requestId={req.id}
+                        onStatusChange={onStatusChange}
+                      />
+                      {currentUser?.role === 'ACCOUNTANT' && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-delete-task"
+                          onClick={() => onDeleteRequest && onDeleteRequest(req)}
+                          title="Delete this task (Accountant only)"
+                        >
+                          🗑️ Delete
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -159,11 +171,23 @@ export default function RequestTable({ requests, loading, onStatusChange, curren
 
               <div className="mobile-card-footer">
                 <span className="mobile-detail-label">Status:</span>
-                <StatusDropdown
-                  currentStatus={req.status}
-                  requestId={req.id}
-                  onStatusChange={onStatusChange}
-                />
+                <div className="mobile-footer-actions">
+                  <StatusDropdown
+                    currentStatus={req.status}
+                    requestId={req.id}
+                    onStatusChange={onStatusChange}
+                  />
+                  {currentUser?.role === 'ACCOUNTANT' && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-delete-task"
+                      onClick={() => onDeleteRequest && onDeleteRequest(req)}
+                      title="Delete this task (Accountant only)"
+                    >
+                      🗑️ Delete
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );

@@ -103,6 +103,30 @@ npm run dev
 * `GET /api/requests/sorted`: Returns tasks sorted by deadline ascending.
 * `GET /api/requests/overdue`: Returns currently overdue open tasks.
 
-### Agent
+### Agent & AI Features
 * `POST /api/scheduler/trigger`: Forces immediate deadline scan by the Watcher Agent.
 * `GET /api/reminders`: Retrieves log of agent-generated alerts.
+* `GET /api/ai/status`: Returns active AI provider, model, and status.
+* `POST /api/ai/workload-analysis`: Performs LLM/AI team workload, bottleneck, and deadline risk analysis.
+* `POST /api/ai/draft-email`: `{ "requestId": 1, "tone": "URGENT" }` — Generates context-aware reminder email.
+* `POST /api/ai/send-draft`: `{ "requestId": 1, "subject": "...", "body": "..." }` — Dispatches AI email to Assignee with copy to Accountant.
+* `POST /api/ai/task-breakdown`: `{ "title": "...", "clientName": "...", "assignee": "..." }` — Generates statutory steps, checklist & effort estimate.
+
+---
+
+## 6. AI / LLM Configuration (Google Gemini & OpenAI)
+
+The application supports **Google Gemini**, **OpenAI**, and an intelligent built-in rule engine (active by default with zero setup required):
+
+In `backend/src/main/resources/application.properties` (or environment variables):
+```properties
+# To use live Google Gemini:
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+GEMINI_MODEL=gemini-1.5-flash
+
+# Or to use OpenAI:
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+OPENAI_MODEL=gpt-4o-mini
+```
+*If no API key is set, the system automatically uses its high-fidelity built-in intelligent engine, ensuring full offline functionality without breaking.*
+
