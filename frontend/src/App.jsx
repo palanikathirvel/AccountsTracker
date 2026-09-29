@@ -226,7 +226,11 @@ export default function App() {
       {/* Accountant: Create Request Form */}
       {isAccountant && (
         <section className="section-form">
-          <RequestForm employees={employees} onRequestCreated={handleRequestCreated} />
+          <RequestForm
+            employees={employees}
+            onEmployeeAdded={handleRegisterEmployee}
+            onRequestCreated={handleRequestCreated}
+          />
         </section>
       )}
 

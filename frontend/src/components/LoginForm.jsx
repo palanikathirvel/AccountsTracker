@@ -16,7 +16,7 @@ export default function LoginForm({ onLoginSuccess, onRegisterEmployee }) {
     try {
       await onLoginSuccess(loginEmail || email, loginPass || password);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Login failed');
+      setError(err.response?.data?.error || err.message || 'Login failed. Check your email & password.');
     } finally {
       setLoading(false);
     }
@@ -33,13 +33,13 @@ export default function LoginForm({ onLoginSuccess, onRegisterEmployee }) {
     try {
       await onRegisterEmployee({
         name: regName.trim(),
-        email: regEmail.trim(),
+        email: regEmail.trim().toLowerCase(),
         password: regPassword.trim(),
         role: 'EMPLOYEE',
       });
       setIsRegistering(false);
-      // Auto login after registration
-      await onLoginSuccess(regEmail.trim(), regPassword.trim());
+      // Auto login after registration with real email
+      await onLoginSuccess(regEmail.trim().toLowerCase(), regPassword.trim());
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Registration failed');
     } finally {
@@ -60,56 +60,21 @@ export default function LoginForm({ onLoginSuccess, onRegisterEmployee }) {
 
         {!isRegistering ? (
           <div>
-            {/* Quick 1-Click Static Logins */}
+            {/* 1-Click Accountant Login */}
             <div className="quick-login-section">
-              <label className="section-mini-label">Quick Sign In:</label>
+              <label className="section-mini-label">Accountant Quick Sign In:</label>
               <button
                 type="button"
                 className="btn btn-quick-accountant"
                 onClick={() => handleLogin('kathirvelpalani294@gmail.com', 'accountant123')}
                 disabled={loading}
               >
-                👔 Login as Accountant (kathirvelpalani294@gmail.com)
+                👔 Sign in as Accountant (kathirvelpalani294@gmail.com)
               </button>
-
-              <div className="employee-quick-grid">
-                <button
-                  type="button"
-                  className="btn btn-quick-emp"
-                  onClick={() => handleLogin('kumar@company.com', 'kumar123')}
-                  disabled={loading}
-                >
-                  👷 Kumar
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-quick-emp"
-                  onClick={() => handleLogin('ravi@company.com', 'ravi123')}
-                  disabled={loading}
-                >
-                  👷 Ravi
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-quick-emp"
-                  onClick={() => handleLogin('arun@company.com', 'arun123')}
-                  disabled={loading}
-                >
-                  👷 Arun
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-quick-emp"
-                  onClick={() => handleLogin('priya@company.com', 'priya123')}
-                  disabled={loading}
-                >
-                  👷 Priya
-                </button>
-              </div>
             </div>
 
             <div className="divider-text">
-              <span>Or sign in with custom credentials</span>
+              <span>Employee Sign In (Real Email ID)</span>
             </div>
 
             <form
@@ -120,12 +85,12 @@ export default function LoginForm({ onLoginSuccess, onRegisterEmployee }) {
               className="login-form"
             >
               <div className="form-group">
-                <label>Email Address</label>
+                <label>Employee Email Address</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. employee@company.com"
+                  placeholder="e.g. yourname@domain.com"
                   required
                 />
               </div>
@@ -142,62 +107,66 @@ export default function LoginForm({ onLoginSuccess, onRegisterEmployee }) {
               </div>
 
               <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-                {loading ? 'Signing In...' : 'Sign In'}
+                {loading ? 'Signing In...' : 'Sign In as Employee'}
               </button>
             </form>
 
             <div className="login-footer">
-              <span>New employee? </span>
+              <span>Need to add an employee? </span>
               <button
                 type="button"
-                className="btn-link"
+                className="btn-link font-semibold"
                 onClick={() => {
                   setError('');
                   setIsRegistering(true);
                 }}
               >
-                Register New Employee
+                ➕ Register Employee with Real Email
               </button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleRegister} className="login-form">
-            <h3 className="sub-title">Register Employee</h3>
+            <h3 className="sub-title">Register Real Employee</h3>
+            <p className="form-hint-text">
+              Add your employee with their real email address so the Watcher Agent can dispatch live notifications.
+            </p>
+
             <div className="form-group">
-              <label>Full Name</label>
+              <label>Employee Full Name</label>
               <input
                 type="text"
                 value={regName}
                 onChange={(e) => setRegName(e.target.value)}
-                placeholder="e.g. Suresh"
+                placeholder="e.g. Rajesh Kumar"
                 required
               />
             </div>
 
             <div className="form-group">
-              <label>Work Email</label>
+              <label>Employee Real Email Address</label>
               <input
                 type="email"
                 value={regEmail}
                 onChange={(e) => setRegEmail(e.target.value)}
-                placeholder="suresh@company.com"
+                placeholder="e.g. employee@gmail.com"
                 required
               />
             </div>
 
             <div className="form-group">
-              <label>Password</label>
+              <label>Create Password</label>
               <input
                 type="password"
                 value={regPassword}
                 onChange={(e) => setRegPassword(e.target.value)}
-                placeholder="Create password"
+                placeholder="••••••••"
                 required
               />
             </div>
 
             <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Register & Log In'}
+              {loading ? 'Registering...' : 'Register & Log In'}
             </button>
 
             <div className="login-footer">

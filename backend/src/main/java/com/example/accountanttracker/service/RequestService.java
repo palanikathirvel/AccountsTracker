@@ -45,16 +45,11 @@ public class RequestService {
     @PostConstruct
     @Transactional
     public void initDefaultUsers() {
-        if (userRepository.count() == 0) {
-            logger.info("Initializing static Accountant and default employees...");
+        if (userRepository.findByEmailIgnoreCase("kathirvelpalani294@gmail.com").isEmpty()) {
+            logger.info("Initializing static Accountant account (kathirvelpalani294@gmail.com)...");
             User accountant = new User("Senior Accountant", "kathirvelpalani294@gmail.com", "accountant123", "ACCOUNTANT");
-            User kumar = new User("Kumar", "kumar@company.com", "kumar123", "EMPLOYEE");
-            User ravi = new User("Ravi", "ravi@company.com", "ravi123", "EMPLOYEE");
-            User arun = new User("Arun", "arun@company.com", "arun123", "EMPLOYEE");
-            User priya = new User("Priya", "priya@company.com", "priya123", "EMPLOYEE");
-
-            userRepository.saveAll(Arrays.asList(accountant, kumar, ravi, arun, priya));
-            logger.info("Users initialized: Accountant (kathirvelpalani294@gmail.com) + Employees (Kumar, Ravi, Arun, Priya)");
+            userRepository.save(accountant);
+            logger.info("Accountant account created. All employees will be registered dynamically.");
         }
     }
 
