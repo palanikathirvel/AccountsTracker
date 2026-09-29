@@ -2,14 +2,16 @@ package com.example.accountanttracker.service;
 
 import com.example.accountanttracker.entity.Reminder;
 import com.example.accountanttracker.entity.Request;
+import com.example.accountanttracker.entity.User;
 import com.example.accountanttracker.repository.ReminderRepository;
 import com.example.accountanttracker.repository.RequestRepository;
+import com.example.accountanttracker.repository.UserRepository;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -24,10 +26,36 @@ public class RequestService {
 
     private final RequestRepository requestRepository;
     private final ReminderRepository reminderRepository;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
 
-    public RequestService(RequestRepository requestRepository, ReminderRepository reminderRepository) {
+    public RequestService(RequestRepository requestRepository,
+                          ReminderRepository reminderRepository,
+                          UserRepository userRepository,
+                          EmailService emailService) {
         this.requestRepository = requestRepository;
         this.reminderRepository = reminderRepository;
+        this.userRepository = userRepository;
+        this.emailService = emailService;
+    }
+
+    /**
+     * Seed static accountant and initial employees if user table is empty.
+     */
+    @PostConstruct
+    @Transactional
+    public void initDefaultUsers() {
+        if (userRepository.count() == 0) {
+            logger.info("Initializing static Accountant and default employees...");
+            User accountant = new User("Senior Accountant", "kathirvelpalani294@gmail.com", "accountant123", "ACCOUNTANT");
+            User kumar = new User("Kumar", "kumar@company.com", "kumar123", "EMPLOYEE");
+            User ravi = new User("Ravi", "ravi@company.com", "ravi123", "EMPLOYEE");
+            User arun = new User("Arun", "arun@company.com", "arun123", "EMPLOYEE");
+            User priya = new User("Priya", "priya@company.com", "priya123", "EMPLOYEE");
+
+            userRepository.saveAll(Arrays.asList(accountant, kumar, ravi, arun, priya));
+            logger.info("Users initialized: Accountant (kathirvelpalani294@gmail.com) + Employees (Kumar, Ravi, Arun, Priya)");
+        }
     }
 
     /**
@@ -44,8 +72,8 @@ public class RequestService {
         if (request.getAssignee() == null || request.getAssignee().trim().isEmpty()) {
             throw new IllegalArgumentException("Assignee cannot be empty");
         }
-        if (request.getDueDate() == null) {
-            throw new IllegalArgumentException("Due date cannot be empty");
+        if (request.getDueDateTime() == null) {
+            throw new IllegalArgumentException("Due date and time cannot be empty");
         }
 
         if (request.getStatus() == null || request.getStatus().trim().isEmpty()) {
@@ -58,6 +86,19 @@ public class RequestService {
             request.setStatus(upperStatus);
         }
 
+        if (request.getAccountantEmail() == null || request.getAccountantEmail().isBlank()) {
+            request.setAccountantEmail("kathirvelpalani294@gmail.com");
+        }
+
+        if (request.getAssigneeEmail() == null || request.getAssigneeEmail().isBlank()) {
+            // Find employee email by name if available
+            userRepository.findByEmailIgnoreCase(request.getAssignee().toLowerCase() + "@company.com")
+                    .ifPresentOrElse(
+                            u -> request.setAssigneeEmail(u.getEmail()),
+                            () -> request.setAssigneeEmail(request.getAssignee().toLowerCase() + "@company.com")
+                    );
+        }
+
         request.setCreatedAt(LocalDateTime.now());
         return requestRepository.save(request);
     }
@@ -67,6 +108,19 @@ public class RequestService {
      */
     public List<Request> getAllRequests() {
         return requestRepository.findAll();
+    }
+
+    /**
+     * Get requests for a specific user (role-based view):
+     * - Accountant sees all requests
+     * - Employee only sees requests assigned to them
+     */
+    public List<Request> getRequestsForUser(String email, String role) {
+        if ("ACCOUNTANT".equalsIgnoreCase(role)) {
+            return requestRepository.findAll();
+        }
+        // Employee view: search by email or name
+        return requestRepository.findByAssigneeEmailIgnoreCaseOrderByDueDateTimeAsc(email);
     }
 
     /**
@@ -98,69 +152,71 @@ public class RequestService {
     }
 
     /**
-     * Get requests sorted by due date (ascending).
+     * Get requests sorted by due date and time (ascending).
      */
     public List<Request> getSortedRequests() {
-        return requestRepository.findAllByOrderByDueDateAsc();
+        return requestRepository.findAllByOrderByDueDateTimeAsc();
     }
 
     /**
-     * Get overdue requests: status is OPEN and due date is strictly before today.
+     * Get overdue requests: status is OPEN and dueDateTime is strictly before now.
      */
     public List<Request> getOverdueRequests() {
-        LocalDate today = LocalDate.now();
-        return requestRepository.findByStatusIgnoreCaseAndDueDateBefore("OPEN", today);
+        LocalDateTime now = LocalDateTime.now();
+        return requestRepository.findByStatusIgnoreCaseAndDueDateTimeBefore("OPEN", now);
     }
 
     /**
-     * Check for overdue requests and generate reminders for the assignees.
-     * Prevents duplicate reminders by checking if a reminder has already been generated today.
-     *
-     * @return count of newly generated reminders
+     * Autonomous Agent: Check for overdue requests and notify both the Assignee and the Accountant.
+     * Also dispatches email alert and records reminder.
+     * Prevents duplicate alerts for the same deadline day.
      */
     @Transactional
     public int checkAndGenerateOverdueReminders() {
-        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
         List<Request> overdueRequests = getOverdueRequests();
         int generatedCount = 0;
 
         for (Request request : overdueRequests) {
-            // Avoid duplicate reminders: only 1 reminder per day per overdue request
-            if (request.getLastReminderAt() != null && request.getLastReminderAt().toLocalDate().isEqual(today)) {
-                logger.debug("Skipping duplicate reminder for request ID {} today", request.getId());
+            // Avoid spamming duplicate reminders: skip if reminded in the last 2 hours
+            if (request.getLastReminderAt() != null && request.getLastReminderAt().isAfter(now.minusHours(2))) {
                 continue;
             }
 
             String reminderMessage = String.format(
-                    "OVERDUE REQUEST REMINDER%n" +
-                    "Request: %s%n" +
-                    "Client: %s%n" +
-                    "Assigned To: %s%n" +
-                    "Due Date: %s%n" +
-                    "Status: %s%n" +
-                    "This request is overdue.",
+                    "OVERDUE REQUEST REMINDER\n" +
+                    "Request: %s\n" +
+                    "Client: %s\n" +
+                    "Assigned To: %s <%s>\n" +
+                    "Accountant Email: %s\n" +
+                    "Deadline: %s\n" +
+                    "Status: %s\n" +
+                    "This request has crossed its scheduled date and time.",
                     request.getTitle(),
                     request.getClientName(),
                     request.getAssignee(),
-                    request.getDueDate(),
+                    request.getAssigneeEmail(),
+                    request.getAccountantEmail(),
+                    request.getDueDateTime(),
                     request.getStatus()
             );
 
-            // Print clean log output for demonstration
-            logger.warn("\n========================================\n" +
-                        "OVERDUE REQUEST REMINDER\n" +
-                        "Request: {}\n" +
-                        "Client: {}\n" +
-                        "Assigned To: {}\n" +
-                        "Due Date: {}\n" +
-                        "Status: {}\n" +
-                        "This request is overdue.\n" +
-                        "========================================",
+            // Log agent alert
+            logger.warn("\n🚨 [DATE & TIME WATCHER AGENT] OVERDUE DETECTED!\n" +
+                        "Task: {} | Client: {}\n" +
+                        "Assignee: {} ({})\n" +
+                        "Accountant: {}\n" +
+                        "Deadline: {} | Current Time: {}",
                     request.getTitle(),
                     request.getClientName(),
                     request.getAssignee(),
-                    request.getDueDate(),
-                    request.getStatus());
+                    request.getAssigneeEmail(),
+                    request.getAccountantEmail(),
+                    request.getDueDateTime(),
+                    now);
+
+            // Dispatch Email via EmailService (sends to assignee, CCs accountant)
+            emailService.sendOverdueAlert(request);
 
             // Save Reminder entity
             Reminder reminder = new Reminder(
@@ -168,14 +224,14 @@ public class RequestService {
                     request.getTitle(),
                     request.getClientName(),
                     request.getAssignee(),
-                    request.getDueDate(),
+                    request.getDueDateTime().toLocalDate(),
                     request.getStatus(),
                     reminderMessage
             );
             reminderRepository.save(reminder);
 
             // Update lastReminderAt
-            request.setLastReminderAt(LocalDateTime.now());
+            request.setLastReminderAt(now);
             requestRepository.save(request);
 
             generatedCount++;
@@ -189,22 +245,5 @@ public class RequestService {
      */
     public List<Reminder> getAllReminders() {
         return reminderRepository.findAllByOrderByGeneratedAtDesc();
-    }
-
-    /**
-     * Seed sample demo data for quick walkthrough testing.
-     */
-    @Transactional
-    public void seedSampleData() {
-        LocalDate today = LocalDate.now();
-
-        // Sample data from requirements
-        Request r1 = new Request("GST Filing", "Demo Company A", "Kumar", today.plusDays(1), "OPEN");
-        Request r2 = new Request("TDS Report", "Demo Company B", "Ravi", today.minusDays(1), "OPEN"); // Overdue!
-        Request r3 = new Request("Audit Report", "Demo Company C", "Arun", today.plusDays(7), "COMPLETED");
-        Request r4 = new Request("Tax Calculation", "Demo Company D", "Priya", today.plusDays(5), "IN_PROGRESS");
-        Request r5 = new Request("Quarterly Financial Review", "Demo Enterprise", "Kumar", today.minusDays(3), "OPEN"); // Overdue!
-
-        requestRepository.saveAll(Arrays.asList(r1, r2, r3, r4, r5));
     }
 }

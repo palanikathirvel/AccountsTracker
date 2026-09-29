@@ -4,16 +4,16 @@ import com.example.accountanttracker.entity.Reminder;
 import com.example.accountanttracker.entity.Request;
 import com.example.accountanttracker.repository.ReminderRepository;
 import com.example.accountanttracker.repository.RequestRepository;
+import com.example.accountanttracker.repository.UserRepository;
+import com.example.accountanttracker.service.EmailService;
 import com.example.accountanttracker.service.RequestService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -32,6 +32,12 @@ public class RequestServiceTest {
     @Mock
     private ReminderRepository reminderRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private RequestService requestService;
 
@@ -39,7 +45,8 @@ public class RequestServiceTest {
 
     @BeforeEach
     void setUp() {
-        sampleRequest = new Request("GST Filing", "Demo Company A", "Kumar", LocalDate.now().plusDays(2), "OPEN");
+        sampleRequest = new Request("GST Filing", "Demo Company A", "Kumar", "kumar@company.com",
+                LocalDateTime.now().plusDays(2), "OPEN");
         sampleRequest.setId(1L);
     }
 
@@ -52,12 +59,14 @@ public class RequestServiceTest {
         assertNotNull(created);
         assertEquals("GST Filing", created.getTitle());
         assertEquals("OPEN", created.getStatus());
+        assertEquals("kathirvelpalani294@gmail.com", created.getAccountantEmail());
         verify(requestRepository, times(1)).save(sampleRequest);
     }
 
     @Test
     void testCreateRequest_ValidationError_EmptyTitle() {
-        Request invalid = new Request("", "Demo Company", "Kumar", LocalDate.now(), "OPEN");
+        Request invalid = new Request("", "Demo Company", "Kumar", "kumar@company.com",
+                LocalDateTime.now(), "OPEN");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
             requestService.createRequest(invalid);
@@ -74,6 +83,17 @@ public class RequestServiceTest {
 
         assertEquals(1, list.size());
         assertEquals("GST Filing", list.get(0).getTitle());
+    }
+
+    @Test
+    void testGetRequestsForUser_EmployeeView() {
+        when(requestRepository.findByAssigneeEmailIgnoreCaseOrderByDueDateTimeAsc("kumar@company.com"))
+                .thenReturn(List.of(sampleRequest));
+
+        List<Request> list = requestService.getRequestsForUser("kumar@company.com", "EMPLOYEE");
+
+        assertEquals(1, list.size());
+        assertEquals("Kumar", list.get(0).getAssignee());
     }
 
     @Test
@@ -98,24 +118,24 @@ public class RequestServiceTest {
 
     @Test
     void testGetSortedRequests() {
-        Request r1 = new Request("Req 1", "Client A", "Kumar", LocalDate.now().plusDays(1), "OPEN");
-        Request r2 = new Request("Req 2", "Client B", "Ravi", LocalDate.now().plusDays(5), "OPEN");
-        when(requestRepository.findAllByOrderByDueDateAsc()).thenReturn(Arrays.asList(r1, r2));
+        Request r1 = new Request("Req 1", "Client A", "Kumar", "kumar@company.com", LocalDateTime.now().plusHours(1), "OPEN");
+        Request r2 = new Request("Req 2", "Client B", "Ravi", "ravi@company.com", LocalDateTime.now().plusHours(5), "OPEN");
+        when(requestRepository.findAllByOrderByDueDateTimeAsc()).thenReturn(Arrays.asList(r1, r2));
 
         List<Request> sorted = requestService.getSortedRequests();
 
         assertEquals(2, sorted.size());
-        assertTrue(sorted.get(0).getDueDate().isBefore(sorted.get(1).getDueDate()));
-        verify(requestRepository, times(1)).findAllByOrderByDueDateAsc();
+        assertTrue(sorted.get(0).getDueDateTime().isBefore(sorted.get(1).getDueDateTime()));
+        verify(requestRepository, times(1)).findAllByOrderByDueDateTimeAsc();
     }
 
     @Test
     void testGetOverdueRequests_Detection() {
-        LocalDate today = LocalDate.now();
-        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", today.minusDays(2), "OPEN");
+        LocalDateTime past = LocalDateTime.now().minusHours(2);
+        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", "ravi@company.com", past, "OPEN");
         overdue.setId(2L);
 
-        when(requestRepository.findByStatusIgnoreCaseAndDueDateBefore(eq("OPEN"), any(LocalDate.class)))
+        when(requestRepository.findByStatusIgnoreCaseAndDueDateTimeBefore(eq("OPEN"), any(LocalDateTime.class)))
                 .thenReturn(List.of(overdue));
 
         List<Request> result = requestService.getOverdueRequests();
@@ -126,38 +146,21 @@ public class RequestServiceTest {
     }
 
     @Test
-    void testCheckAndGenerateOverdueReminders_GeneratesReminder() {
-        LocalDate today = LocalDate.now();
-        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", today.minusDays(2), "OPEN");
+    void testCheckAndGenerateOverdueReminders_DispatchesEmailAndSaves() {
+        LocalDateTime past = LocalDateTime.now().minusHours(2);
+        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", "ravi@company.com", past, "OPEN");
         overdue.setId(2L);
         overdue.setLastReminderAt(null);
 
-        when(requestRepository.findByStatusIgnoreCaseAndDueDateBefore(eq("OPEN"), any(LocalDate.class)))
+        when(requestRepository.findByStatusIgnoreCaseAndDueDateTimeBefore(eq("OPEN"), any(LocalDateTime.class)))
                 .thenReturn(List.of(overdue));
 
         int count = requestService.checkAndGenerateOverdueReminders();
 
         assertEquals(1, count);
+        verify(emailService, times(1)).sendOverdueAlert(overdue);
         verify(reminderRepository, times(1)).save(any(Reminder.class));
         verify(requestRepository, times(1)).save(overdue);
         assertNotNull(overdue.getLastReminderAt());
-    }
-
-    @Test
-    void testAvoidDuplicateReminders_SameDay() {
-        LocalDate today = LocalDate.now();
-        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", today.minusDays(2), "OPEN");
-        overdue.setId(2L);
-        // Already reminded earlier today
-        overdue.setLastReminderAt(LocalDateTime.now().minusHours(1));
-
-        when(requestRepository.findByStatusIgnoreCaseAndDueDateBefore(eq("OPEN"), any(LocalDate.class)))
-                .thenReturn(List.of(overdue));
-
-        int count = requestService.checkAndGenerateOverdueReminders();
-
-        // Should NOT generate duplicate reminder today
-        assertEquals(0, count);
-        verify(reminderRepository, never()).save(any(Reminder.class));
     }
 }

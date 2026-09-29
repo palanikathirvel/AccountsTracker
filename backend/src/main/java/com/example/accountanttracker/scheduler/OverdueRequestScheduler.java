@@ -8,8 +8,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Scheduler that periodically scans for overdue requests and generates reminders.
- * The interval is configurable in application.properties via 'scheduler.overdue-check-rate'.
+ * Autonomous Date & Time Watcher Agent:
+ * Periodically monitors task deadlines. If the current date and time passes the task deadline,
+ * the agent automatically generates an overdue notice, dispatches email alerts to the assignee,
+ * and notifies the accountant (kathirvelpalani294@gmail.com).
  */
 @Component
 @ConditionalOnProperty(name = "scheduler.enabled", havingValue = "true", matchIfMissing = true)
@@ -24,17 +26,14 @@ public class OverdueRequestScheduler {
     }
 
     /**
-     * Periodic task to check overdue requests and issue reminders to assignees.
-     * Rate is configurable (default: 60000 ms = 60 seconds).
+     * Agent heartbeat loop running on configured rate (default: every 30 seconds).
      */
-    @Scheduled(fixedRateString = "${scheduler.overdue-check-rate:60000}")
+    @Scheduled(fixedRateString = "${scheduler.overdue-check-rate:30000}")
     public void runOverdueCheck() {
-        logger.info("Executing scheduled overdue request check...");
+        logger.debug("🤖 [OVERDUE WATCHER AGENT] Scanning tasks for expired deadlines...");
         int count = requestService.checkAndGenerateOverdueReminders();
         if (count > 0) {
-            logger.info("Scheduler generated {} new overdue reminder(s).", count);
-        } else {
-            logger.debug("Scheduler check complete. No new overdue reminders to generate.");
+            logger.info("🤖 [OVERDUE WATCHER AGENT] Alerted {} overdue task(s). Notifications & emails dispatched.", count);
         }
     }
 }

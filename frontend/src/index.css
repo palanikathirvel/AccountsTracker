@@ -1,6 +1,5 @@
 /* ============================================================
    Accountant Request Tracker - Stylesheet
-   Clean, modern, professional UI styling
    ============================================================ */
 
 :root {
@@ -25,7 +24,6 @@
   --radius: 8px;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1);
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
 }
 
@@ -62,11 +60,32 @@ body {
   gap: 16px;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .app-title {
   font-size: 26px;
   font-weight: 700;
   color: var(--gray-800);
   letter-spacing: -0.5px;
+}
+
+.role-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+}
+
+.role-tag-accountant {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
 }
 
 .app-tagline {
@@ -77,7 +96,169 @@ body {
 
 .header-right {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
+}
+
+.user-profile-badge {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+
+.user-name {
+  font-size: 14px;
+  color: var(--gray-800);
+}
+
+.user-email-text {
+  font-size: 12px;
+  color: var(--gray-400);
+}
+
+/* Login Screen */
+.login-modal-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 85vh;
+  padding: 20px;
+}
+
+.login-card {
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  padding: 36px 32px;
+  width: 100%;
+  max-width: 460px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.login-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.login-tagline {
+  font-size: 13px;
+  color: var(--gray-600);
+  margin-top: 4px;
+}
+
+.quick-login-section {
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.section-mini-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gray-600);
+  margin-bottom: 8px;
+}
+
+.btn-quick-accountant {
+  width: 100%;
+  background-color: #1e3a8a;
+  color: var(--white);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.btn-quick-accountant:hover {
+  background-color: #172554;
+}
+
+.employee-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.btn-quick-emp {
+  background-color: var(--white);
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-quick-emp:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.divider-text {
+  text-align: center;
+  position: relative;
+  margin: 20px 0;
+}
+
+.divider-text::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--gray-200);
+}
+
+.divider-text span {
+  position: relative;
+  background: var(--white);
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--gray-400);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--gray-600);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  text-decoration: underline;
 }
 
 /* Cards */
@@ -108,7 +289,7 @@ body {
 /* Form */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -195,15 +376,6 @@ body {
 
 .btn-secondary:hover:not(:disabled) {
   background-color: var(--gray-200);
-}
-
-.btn-seed {
-  background-color: #0d9488;
-  color: var(--white);
-}
-
-.btn-seed:hover:not(:disabled) {
-  background-color: #0f766e;
 }
 
 .btn-outline {
@@ -322,7 +494,7 @@ body {
   color: var(--danger);
 }
 
-/* Reminders Panel */
+/* Reminders & Agent Panel */
 .reminders-card {
   background: #f8fafc;
   border-left: 4px solid #f59e0b;
@@ -343,8 +515,25 @@ body {
   gap: 12px;
 }
 
+.agent-status-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-live-badge {
+  background-color: #dcfce7;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid #86efac;
+}
+
 .bell-icon {
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .reminders-title {
@@ -373,7 +562,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 280px;
+  max-height: 320px;
   overflow-y: auto;
 }
 
@@ -386,7 +575,9 @@ body {
 
 .reminder-item-header {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 6px;
 }
 
@@ -399,9 +590,19 @@ body {
   border-radius: 4px;
 }
 
+.reminder-cc-badge {
+  font-size: 11px;
+  font-weight: 600;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
 .reminder-time {
   font-size: 12px;
   color: var(--gray-400);
+  margin-left: auto;
 }
 
 .reminder-details {
@@ -418,12 +619,6 @@ body {
   font-family: monospace;
   color: #334155;
   white-space: pre-wrap;
-}
-
-.no-reminders-text {
-  font-size: 13px;
-  color: var(--gray-600);
-  font-style: italic;
 }
 
 /* Controls Bar */
@@ -545,14 +740,26 @@ body {
   color: var(--gray-700);
 }
 
+.assignee-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
 .assignee-badge {
   display: inline-block;
   background-color: #e0e7ff;
   color: #3730a3;
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
+  width: fit-content;
+}
+
+.assignee-email-sub {
+  font-size: 11px;
+  color: var(--gray-400);
+  margin-top: 2px;
 }
 
 /* Status Badges */
@@ -597,8 +804,9 @@ body {
 }
 
 .on-time-tag {
-  color: var(--gray-400);
-  padding-left: 12px;
+  color: #16a34a;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 /* Status Dropdown */
@@ -653,6 +861,11 @@ body {
   border: 1px solid #bae6fd;
 }
 
+.urgent-overdue-alert {
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
 .table-loading,
 .table-empty {
   text-align: center;
@@ -669,7 +882,6 @@ body {
 
 .text-danger {
   color: var(--danger);
-  font-weight: 600;
 }
 
 /* Footer */

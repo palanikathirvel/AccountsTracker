@@ -1,11 +1,11 @@
 import React from 'react';
 import StatusDropdown from './StatusDropdown';
 
-export default function RequestTable({ requests, loading, onStatusChange, currentDateStr }) {
+export default function RequestTable({ requests, loading, onStatusChange, currentUser }) {
   if (loading) {
     return (
       <div className="table-loading">
-        <p>Loading requests...</p>
+        <p>Loading tasks...</p>
       </div>
     );
   }
@@ -13,20 +13,38 @@ export default function RequestTable({ requests, loading, onStatusChange, curren
   if (!requests || requests.length === 0) {
     return (
       <div className="table-empty">
-        <p>No requests found matching your filter.</p>
-        <span className="empty-hint">Create a new request above or click "Load Demo Data".</span>
+        <p>No tasks found.</p>
+        <span className="empty-hint">
+          {currentUser?.role === 'ACCOUNTANT'
+            ? 'Assign a new task using the form above.'
+            : 'You currently have no tasks assigned to you.'}
+        </span>
       </div>
     );
   }
 
-  // Check if a request is overdue based on current date
-  const checkIfOverdue = (req) => {
-    if (req.overdue !== undefined) {
-      return req.overdue;
+  // Format Date and Time
+  const formatDateTime = (dtStr) => {
+    if (!dtStr) return '—';
+    try {
+      const dt = new Date(dtStr);
+      return dt.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dtStr;
     }
-    if (!req.dueDate || !req.status) return false;
-    const today = currentDateStr || new Date().toISOString().split('T')[0];
-    return req.status === 'OPEN' && req.dueDate < today;
+  };
+
+  // Check if overdue by comparing exact timestamp
+  const checkIfOverdue = (req) => {
+    if (req.overdue !== undefined) return req.overdue;
+    if (!req.dueDateTime || !req.status) return false;
+    return req.status === 'OPEN' && new Date(req.dueDateTime) < new Date();
   };
 
   return (
@@ -35,13 +53,13 @@ export default function RequestTable({ requests, loading, onStatusChange, curren
         <thead>
           <tr>
             <th style={{ width: '60px' }}>ID</th>
-            <th>Title</th>
+            <th>Task Title</th>
             <th>Client</th>
             <th>Assignee</th>
-            <th>Due Date</th>
+            <th>Deadline (Date & Time)</th>
             <th>Status</th>
             <th>Overdue Indicator</th>
-            <th style={{ width: '180px' }}>Actions</th>
+            <th style={{ width: '180px' }}>Update Status</th>
           </tr>
         </thead>
         <tbody>
@@ -53,9 +71,18 @@ export default function RequestTable({ requests, loading, onStatusChange, curren
                 <td className="cell-title font-semibold">{req.title}</td>
                 <td className="cell-client">{req.clientName}</td>
                 <td className="cell-assignee">
-                  <span className="assignee-badge">{req.assignee}</span>
+                  <div className="assignee-wrap">
+                    <span className="assignee-badge">{req.assignee}</span>
+                    {req.assigneeEmail && (
+                      <span className="assignee-email-sub">{req.assigneeEmail}</span>
+                    )}
+                  </div>
                 </td>
-                <td className="cell-due-date">{req.dueDate}</td>
+                <td className="cell-due-date">
+                  <span className={isOverdue ? 'text-danger font-semibold' : ''}>
+                    {formatDateTime(req.dueDateTime)}
+                  </span>
+                </td>
                 <td className="cell-status">
                   <span className={`status-badge status-${req.status?.toLowerCase()}`}>
                     {req.status?.replace('_', ' ')}
@@ -67,7 +94,7 @@ export default function RequestTable({ requests, loading, onStatusChange, curren
                       <span className="warning-icon" aria-hidden="true">⚠️</span> OVERDUE
                     </span>
                   ) : (
-                    <span className="on-time-tag">—</span>
+                    <span className="on-time-tag">On Track ✓</span>
                   )}
                 </td>
                 <td className="cell-actions">

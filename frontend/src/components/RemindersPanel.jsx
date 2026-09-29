@@ -9,10 +9,10 @@ export default function RemindersPanel({ reminders, onTriggerScheduler, refreshi
     setTriggering(true);
     try {
       const res = await onTriggerScheduler();
-      setNotification(`Scheduler executed! ${res.remindersGenerated} new reminder(s) generated.`);
-      setTimeout(() => setNotification(''), 4000);
+      setNotification(`Agent scan complete! ${res.remindersGenerated} overdue alerts dispatched via email & logs.`);
+      setTimeout(() => setNotification(''), 4500);
     } catch (err) {
-      setNotification('Failed to trigger scheduler: ' + (err.response?.data?.error || err.message));
+      setNotification('Failed to trigger agent: ' + (err.response?.data?.error || err.message));
     } finally {
       setTriggering(false);
     }
@@ -22,11 +22,14 @@ export default function RemindersPanel({ reminders, onTriggerScheduler, refreshi
     <div className="card reminders-card">
       <div className="reminders-header">
         <div className="reminders-title-group">
-          <span className="bell-icon">🔔</span>
+          <span className="bell-icon">🤖</span>
           <div>
-            <h3 className="reminders-title">Automated Assignee Reminders</h3>
+            <div className="agent-status-badge-row">
+              <h3 className="reminders-title">Autonomous Date & Time Watcher Agent</h3>
+              <span className="agent-live-badge">● LIVE (Scanning every 30s)</span>
+            </div>
             <span className="reminders-subtitle">
-              Generated automatically by Spring Scheduler for overdue OPEN requests
+              Monitors task deadlines. Dispatches email alerts to Assignees & CCs Accountant (<strong>kathirvelpalani294@gmail.com</strong>).
             </span>
           </div>
         </div>
@@ -36,16 +39,16 @@ export default function RemindersPanel({ reminders, onTriggerScheduler, refreshi
             className="btn btn-secondary btn-sm"
             onClick={handleTrigger}
             disabled={triggering}
-            title="Force immediate execution of Spring Scheduler check"
+            title="Force immediate agent deadline scan"
           >
-            {triggering ? 'Running...' : '⚡ Run Overdue Check Now'}
+            {triggering ? 'Scanning...' : '⚡ Scan Deadlines Now'}
           </button>
           <button
             type="button"
             className="btn btn-outline btn-sm"
             onClick={() => setIsOpen(!isOpen)}
           >
-            {isOpen ? 'Hide Log ▲' : `View Log (${reminders.length}) ▼`}
+            {isOpen ? 'Hide Agent Log ▲' : `View Agent Log (${reminders.length}) ▼`}
           </button>
         </div>
       </div>
@@ -56,20 +59,21 @@ export default function RemindersPanel({ reminders, onTriggerScheduler, refreshi
         <div className="reminders-content">
           {reminders.length === 0 ? (
             <p className="no-reminders-text">
-              No reminders generated yet. If an OPEN request is past its due date, the scheduler will automatically log a reminder here and in the backend console.
+              No overdue alerts generated yet. As soon as a task crosses its scheduled date and time, the Watcher Agent will log it here and dispatch an email alert to the Assignee with Accountant CC'd.
             </p>
           ) : (
             <div className="reminders-list">
               {reminders.map((rem) => (
                 <div key={rem.id} className="reminder-item">
                   <div className="reminder-item-header">
-                    <span className="reminder-badge">ASSIGNED TO: {rem.assignee}</span>
+                    <span className="reminder-badge">ALERTED ASSIGNEE: {rem.assignee}</span>
+                    <span className="reminder-cc-badge">CC: kathirvelpalani294@gmail.com</span>
                     <span className="reminder-time">
                       {new Date(rem.generatedAt).toLocaleString()}
                     </span>
                   </div>
                   <div className="reminder-details">
-                    <strong>{rem.requestTitle}</strong> ({rem.clientName}) — Due: <span className="text-danger">{rem.dueDate}</span>
+                    <strong>{rem.requestTitle}</strong> ({rem.clientName})
                   </div>
                   <pre className="reminder-raw-box">{rem.message}</pre>
                 </div>

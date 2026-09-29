@@ -1,14 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const ASSIGNEE_OPTIONS = ['Kumar', 'Ravi', 'Arun', 'Priya'];
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'COMPLETED'];
 
-export default function RequestForm({ onRequestCreated }) {
+export default function RequestForm({ employees, onRequestCreated }) {
+  // Default due date time: 1 hour from now formatted for datetime-local
+  const getDefaultDateTime = () => {
+    const d = new Date();
+    d.setHours(d.getHours() + 1);
+    d.setMinutes(0);
+    // YYYY-MM-DDTHH:mm
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   const [formData, setFormData] = useState({
     title: '',
     clientName: '',
-    assignee: 'Kumar',
-    dueDate: '',
+    assignee: '',
+    assigneeEmail: '',
+    accountantEmail: 'kathirvelpalani294@gmail.com',
+    dueDateTime: getDefaultDateTime(),
     status: 'OPEN',
   });
 
@@ -16,27 +27,39 @@ export default function RequestForm({ onRequestCreated }) {
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Set default assignee when employees list loads
+  useEffect(() => {
+    if (employees && employees.length > 0 && !formData.assignee) {
+      setFormData((prev) => ({
+        ...prev,
+        assignee: employees[0].name,
+        assigneeEmail: employees[0].email,
+      }));
+    }
+  }, [employees]);
+
   const validate = () => {
     const errs = {};
-    if (!formData.title.trim()) {
-      errs.title = 'Title is required';
-    }
-    if (!formData.clientName.trim()) {
-      errs.clientName = 'Client name is required';
-    }
-    if (!formData.assignee.trim()) {
-      errs.assignee = 'Assignee is required';
-    }
-    if (!formData.dueDate) {
-      errs.dueDate = 'Due date is required';
-    }
+    if (!formData.title.trim()) errs.title = 'Title is required';
+    if (!formData.clientName.trim()) errs.clientName = 'Client name is required';
+    if (!formData.assignee.trim()) errs.assignee = 'Assignee is required';
+    if (!formData.dueDateTime) errs.dueDateTime = 'Due date and time is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'assignee') {
+      const selectedEmp = employees.find((emp) => emp.name === value);
+      setFormData((prev) => ({
+        ...prev,
+        assignee: value,
+        assigneeEmail: selectedEmp ? selectedEmp.email : `${value.toLowerCase()}@company.com`,
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -51,16 +74,17 @@ export default function RequestForm({ onRequestCreated }) {
 
     try {
       await onRequestCreated(formData);
-      setSuccessMessage('✓ Request created successfully!');
-      // Reset form
+      setSuccessMessage('✓ Task created! Watcher Agent will monitor deadline.');
       setFormData({
         title: '',
         clientName: '',
-        assignee: 'Kumar',
-        dueDate: '',
+        assignee: employees && employees.length > 0 ? employees[0].name : '',
+        assigneeEmail: employees && employees.length > 0 ? employees[0].email : '',
+        accountantEmail: 'kathirvelpalani294@gmail.com',
+        dueDateTime: getDefaultDateTime(),
         status: 'OPEN',
       });
-      setTimeout(() => setSuccessMessage(''), 3500);
+      setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'Failed to create request';
       setErrors({ form: msg });
@@ -72,8 +96,10 @@ export default function RequestForm({ onRequestCreated }) {
   return (
     <div className="card form-card">
       <div className="card-header">
-        <h2 className="card-title">Create New Request</h2>
-        <span className="card-subtitle">Assign an accounting task to a team member</span>
+        <h2 className="card-title">Assign New Accounting Task</h2>
+        <span className="card-subtitle">
+          Supervised by Accountant (<strong>kathirvelpalani294@gmail.com</strong>) • Monitored by Overdue Watcher Agent
+        </span>
       </div>
 
       {successMessage && <div className="alert alert-success">{successMessage}</div>}
@@ -84,7 +110,7 @@ export default function RequestForm({ onRequestCreated }) {
           {/* Title */}
           <div className="form-group">
             <label htmlFor="req-title">
-              Title <span className="required">*</span>
+              Task Title <span className="required">*</span>
             </label>
             <input
               id="req-title"
@@ -130,30 +156,34 @@ export default function RequestForm({ onRequestCreated }) {
               className={errors.assignee ? 'input-error' : ''}
               required
             >
-              {ASSIGNEE_OPTIONS.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
+              {employees && employees.length > 0 ? (
+                employees.map((emp) => (
+                  <option key={emp.id} value={emp.name}>
+                    {emp.name} ({emp.email})
+                  </option>
+                ))
+              ) : (
+                <option value="Kumar">Kumar</option>
+              )}
             </select>
             {errors.assignee && <span className="error-text">{errors.assignee}</span>}
           </div>
 
-          {/* Due Date */}
+          {/* Due Date AND Time */}
           <div className="form-group">
-            <label htmlFor="req-due-date">
-              Due Date <span className="required">*</span>
+            <label htmlFor="req-due-date-time">
+              Deadline (Date & Exact Time) <span className="required">*</span>
             </label>
             <input
-              id="req-due-date"
-              type="date"
-              name="dueDate"
-              value={formData.dueDate}
+              id="req-due-date-time"
+              type="datetime-local"
+              name="dueDateTime"
+              value={formData.dueDateTime}
               onChange={handleChange}
-              className={errors.dueDate ? 'input-error' : ''}
+              className={errors.dueDateTime ? 'input-error' : ''}
               required
             />
-            {errors.dueDate && <span className="error-text">{errors.dueDate}</span>}
+            {errors.dueDateTime && <span className="error-text">{errors.dueDateTime}</span>}
           </div>
 
           {/* Status */}
@@ -176,7 +206,7 @@ export default function RequestForm({ onRequestCreated }) {
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={submitting}>
-            {submitting ? 'Creating...' : 'CREATE REQUEST'}
+            {submitting ? 'Creating Task...' : '➕ ASSIGN TASK'}
           </button>
         </div>
       </form>

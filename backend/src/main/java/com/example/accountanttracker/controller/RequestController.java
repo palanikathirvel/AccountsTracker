@@ -33,11 +33,16 @@ public class RequestController {
     }
 
     /**
-     * Get all requests.
+     * Get all requests, or filter by user role/email.
      * GET /api/requests
      */
     @GetMapping("/requests")
-    public ResponseEntity<List<Request>> getAllRequests() {
+    public ResponseEntity<List<Request>> getAllRequests(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false, defaultValue = "ACCOUNTANT") String role) {
+        if (email != null && !email.trim().isEmpty()) {
+            return ResponseEntity.ok(requestService.getRequestsForUser(email.trim(), role));
+        }
         List<Request> list = requestService.getAllRequests();
         return ResponseEntity.ok(list);
     }
@@ -57,7 +62,6 @@ public class RequestController {
     /**
      * Update request status.
      * PUT /api/requests/{id}/status
-     * Accepts either {"status": "IN_PROGRESS"} or a plain string
      */
     @PutMapping("/requests/{id}/status")
     public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
@@ -77,7 +81,7 @@ public class RequestController {
     }
 
     /**
-     * Get requests sorted by due date ascending.
+     * Get requests sorted by due date and time ascending.
      * GET /api/requests/sorted
      */
     @GetMapping("/requests/sorted")
@@ -87,7 +91,7 @@ public class RequestController {
     }
 
     /**
-     * Get overdue requests (status is OPEN and due date < today).
+     * Get overdue requests (status is OPEN and deadline has passed).
      * GET /api/requests/overdue
      */
     @GetMapping("/requests/overdue")
@@ -106,25 +110,15 @@ public class RequestController {
     }
 
     /**
-     * Manually trigger overdue check and reminder generation.
+     * Manually trigger overdue agent check and reminder generation.
      * POST /api/scheduler/trigger
      */
     @PostMapping("/scheduler/trigger")
     public ResponseEntity<Map<String, Object>> triggerScheduler() {
         int count = requestService.checkAndGenerateOverdueReminders();
         return ResponseEntity.ok(Map.of(
-                "message", "Overdue check completed",
+                "message", "Autonomous Date & Time Watcher Agent executed check",
                 "remindersGenerated", count
         ));
-    }
-
-    /**
-     * Seed sample demo data.
-     * POST /api/requests/seed
-     */
-    @PostMapping("/requests/seed")
-    public ResponseEntity<Map<String, String>> seedData() {
-        requestService.seedSampleData();
-        return ResponseEntity.ok(Collections.singletonMap("message", "Sample demo data created successfully"));
     }
 }

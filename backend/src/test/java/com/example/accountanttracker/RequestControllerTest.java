@@ -16,7 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,7 +52,7 @@ public class RequestControllerTest {
 
     @Test
     void testCreateRequest_Returns201() throws Exception {
-        Request req = new Request("GST Filing", "Demo Company A", "Kumar", LocalDate.now().plusDays(2), "OPEN");
+        Request req = new Request("GST Filing", "Demo Company A", "Kumar", "kumar@company.com", LocalDateTime.now().plusDays(2), "OPEN");
         req.setId(1L);
 
         when(requestService.createRequest(any(Request.class))).thenReturn(req);
@@ -67,7 +67,7 @@ public class RequestControllerTest {
 
     @Test
     void testGetAllRequests_Returns200() throws Exception {
-        Request req = new Request("GST Filing", "Demo Company A", "Kumar", LocalDate.now().plusDays(2), "OPEN");
+        Request req = new Request("GST Filing", "Demo Company A", "Kumar", "kumar@company.com", LocalDateTime.now().plusDays(2), "OPEN");
         when(requestService.getAllRequests()).thenReturn(List.of(req));
 
         mockMvc.perform(get("/api/requests"))
@@ -86,7 +86,7 @@ public class RequestControllerTest {
 
     @Test
     void testUpdateStatus_Returns200() throws Exception {
-        Request updated = new Request("GST Filing", "Demo Company A", "Kumar", LocalDate.now().plusDays(2), "IN_PROGRESS");
+        Request updated = new Request("GST Filing", "Demo Company A", "Kumar", "kumar@company.com", LocalDateTime.now().plusDays(2), "IN_PROGRESS");
         updated.setId(1L);
 
         when(requestService.updateStatus(eq(1L), eq("IN_PROGRESS"))).thenReturn(updated);
@@ -100,7 +100,7 @@ public class RequestControllerTest {
 
     @Test
     void testGetOverdueRequests_Returns200() throws Exception {
-        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", LocalDate.now().minusDays(1), "OPEN");
+        Request overdue = new Request("TDS Report", "Demo Company B", "Ravi", "ravi@company.com", LocalDateTime.now().minusHours(1), "OPEN");
         when(requestService.getOverdueRequests()).thenReturn(List.of(overdue));
 
         mockMvc.perform(get("/api/requests/overdue"))
