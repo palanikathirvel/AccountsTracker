@@ -125,7 +125,7 @@ public class RequestService {
     /**
      * Get request by ID.
      */
-    public Optional<Request> getRequestById(Long id) {
+    public Optional<Request> getRequestById(String id) {
         return requestRepository.findById(id);
     }
 
@@ -133,7 +133,7 @@ public class RequestService {
      * Update request status.
      */
     @Transactional
-    public Request updateStatus(Long id, String status) {
+    public Request updateStatus(String id, String status) {
         Request request = requestRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Request not found with id: " + id));
 
@@ -276,7 +276,7 @@ public class RequestService {
      * Dispatch an AI-generated or custom reminder email and log it.
      */
     @Transactional
-    public Reminder sendAiReminder(Long requestId, String subject, String body) {
+    public Reminder sendAiReminder(String requestId, String subject, String body) {
         Request request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Request not found with id: " + requestId));
 
@@ -318,7 +318,7 @@ public class RequestService {
      * Also removes associated reminders for this task.
      */
     @Transactional
-    public void deleteRequest(Long id) {
+    public void deleteRequest(String id) {
         if (!requestRepository.existsById(id)) {
             throw new IllegalArgumentException("Request not found with id: " + id);
         }

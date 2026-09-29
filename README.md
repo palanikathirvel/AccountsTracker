@@ -47,7 +47,29 @@ A full-stack system designed for accounting teams featuring **Role-Based Portals
 
 ---
 
-## 3. Configuring Real Gmail Sending
+## 3. MongoDB Cloud (Atlas) Configuration
+
+The application is powered by **MongoDB Cloud (Atlas)**.
+
+### Setting Up Your MongoDB Atlas Connection:
+1. Log in to your [MongoDB Atlas Console](https://cloud.mongodb.com/).
+2. Create or select a cluster (e.g., Free Shared Tier M0).
+3. Under **Security → Database Access**, create a user with read/write privileges.
+4. Under **Security → Network Access**, add your current IP address (or `0.0.0.0/0` for development).
+5. Click **Connect → Drivers (Java)** to copy your connection string:
+   ```text
+   mongodb+srv://<username>:<password>@cluster0.mongodb.net/accountant_tracker?retryWrites=true&w=majority
+   ```
+6. Supply the connection string using any of these methods:
+   - **Environment variable**: Set `MONGODB_URI`
+   - **Properties file**: In `backend/src/main/resources/application.properties` (or `application-local.properties`):
+     ```properties
+     spring.data.mongodb.uri=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/accountant_tracker?retryWrites=true&w=majority
+     ```
+
+---
+
+## 4. Configuring Real Gmail Sending
 
 In `backend/src/main/resources/application.properties`:
 ```properties

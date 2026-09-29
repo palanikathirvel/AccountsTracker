@@ -1,32 +1,29 @@
 package com.example.accountanttracker.entity;
 
-import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@Entity
-@Table(name = "users")
+@Document(collection = "users")
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     @NotBlank(message = "Name is required")
-    @Column(name = "name", nullable = false)
     private String name;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
-    @Column(name = "email", nullable = false, unique = true)
+    @Indexed(unique = true)
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Column(name = "password", nullable = false)
     private String password;
 
     @NotBlank(message = "Role is required")
-    @Column(name = "role", nullable = false)
     private String role; // "ACCOUNTANT" or "EMPLOYEE"
 
     public User() {
@@ -39,11 +36,11 @@ public class User {
         this.role = role;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 

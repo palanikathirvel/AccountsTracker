@@ -1,13 +1,13 @@
 package com.example.accountanttracker.repository;
 
 import com.example.accountanttracker.entity.Reminder;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface ReminderRepository extends JpaRepository<Reminder, Long> {
+public interface ReminderRepository extends MongoRepository<Reminder, String> {
 
     /**
      * Retrieve all reminders ordered by newest first.
@@ -17,6 +17,5 @@ public interface ReminderRepository extends JpaRepository<Reminder, Long> {
     /**
      * Delete reminders associated with a request ID.
      */
-    @org.springframework.transaction.annotation.Transactional
-    void deleteByRequestId(Long requestId);
+    void deleteByRequestId(String requestId);
 }

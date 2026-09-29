@@ -85,9 +85,9 @@ public class AiControllerTest {
     @Test
     void testDraftEmail() throws Exception {
         Request req = new Request("TDS Filing", "Client X", "Kumar", "kumar@company.com", LocalDateTime.now(), "OPEN");
-        req.setId(1L);
+        req.setId("1");
 
-        when(requestService.getRequestById(1L)).thenReturn(Optional.of(req));
+        when(requestService.getRequestById("1")).thenReturn(Optional.of(req));
         when(aiService.draftReminderEmail(eq(req), eq("URGENT"))).thenReturn(Map.of(
                 "subject", "Urgent Filing Notice",
                 "body", "Please complete TDS filing."
@@ -95,20 +95,20 @@ public class AiControllerTest {
 
         mockMvc.perform(post("/api/ai/draft-email")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("requestId", 1L, "tone", "URGENT"))))
+                        .content(objectMapper.writeValueAsString(Map.of("requestId", "1", "tone", "URGENT"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.subject").value("Urgent Filing Notice"));
     }
 
     @Test
     void testSendDraft() throws Exception {
-        Reminder reminder = new Reminder(1L, "TDS Filing", "Client X", "Kumar", LocalDate.now(), "OPEN", "AI Reminder");
-        when(requestService.sendAiReminder(1L, "Subject", "Body")).thenReturn(reminder);
+        Reminder reminder = new Reminder("1", "TDS Filing", "Client X", "Kumar", LocalDate.now(), "OPEN", "AI Reminder");
+        when(requestService.sendAiReminder("1", "Subject", "Body")).thenReturn(reminder);
 
         mockMvc.perform(post("/api/ai/send-draft")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "requestId", 1L,
+                                "requestId", "1",
                                 "subject", "Subject",
                                 "body", "Body"
                         ))))

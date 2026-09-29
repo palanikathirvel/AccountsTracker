@@ -59,7 +59,7 @@ public class AiController {
         if (reqIdObj == null) {
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", "requestId is required"));
         }
-        Long requestId = Long.valueOf(reqIdObj.toString());
+        String requestId = reqIdObj.toString();
         String tone = (String) payload.getOrDefault("tone", "PROFESSIONAL");
 
         return requestService.getRequestById(requestId)
@@ -83,7 +83,7 @@ public class AiController {
         }
 
         try {
-            Long requestId = Long.valueOf(reqIdObj.toString());
+            String requestId = reqIdObj.toString();
             Reminder reminder = requestService.sendAiReminder(requestId, subject, body);
             return ResponseEntity.ok(Map.of(
                     "success", true,

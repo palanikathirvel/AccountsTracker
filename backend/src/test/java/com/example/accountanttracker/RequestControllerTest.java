@@ -53,7 +53,7 @@ public class RequestControllerTest {
     @Test
     void testCreateRequest_Returns201() throws Exception {
         Request req = new Request("GST Filing", "Demo Company A", "Kumar", "kumar@company.com", LocalDateTime.now().plusDays(2), "OPEN");
-        req.setId(1L);
+        req.setId("1");
 
         when(requestService.createRequest(any(Request.class))).thenReturn(req);
 
@@ -61,7 +61,7 @@ public class RequestControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.id").value("1"))
                 .andExpect(jsonPath("$.title").value("GST Filing"));
     }
 
@@ -78,7 +78,7 @@ public class RequestControllerTest {
 
     @Test
     void testGetRequestById_NotFound_Returns404() throws Exception {
-        when(requestService.getRequestById(999L)).thenReturn(Optional.empty());
+        when(requestService.getRequestById("999")).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/requests/999"))
                 .andExpect(status().isNotFound());
@@ -87,9 +87,9 @@ public class RequestControllerTest {
     @Test
     void testUpdateStatus_Returns200() throws Exception {
         Request updated = new Request("GST Filing", "Demo Company A", "Kumar", "kumar@company.com", LocalDateTime.now().plusDays(2), "IN_PROGRESS");
-        updated.setId(1L);
+        updated.setId("1");
 
-        when(requestService.updateStatus(eq(1L), eq("IN_PROGRESS"))).thenReturn(updated);
+        when(requestService.updateStatus(eq("1"), eq("IN_PROGRESS"))).thenReturn(updated);
 
         mockMvc.perform(put("/api/requests/1/status")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -1,56 +1,50 @@
 package com.example.accountanttracker.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
  * Entity representing an accountant task request with date and time deadline.
  */
-@Entity
-@Table(name = "requests")
+@Document(collection = "requests")
 public class Request {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     @NotBlank(message = "Title is required")
-    @Column(name = "title", nullable = false)
     private String title;
 
     @NotBlank(message = "Client name is required")
-    @Column(name = "client_name", nullable = false)
     private String clientName;
 
     @NotBlank(message = "Assignee is required")
-    @Column(name = "assignee", nullable = false)
     private String assignee;
 
-    @Column(name = "assignee_email")
     private String assigneeEmail;
 
-    @Column(name = "accountant_email")
     private String accountantEmail = "kathirvelpalani294@gmail.com";
 
     @NotNull(message = "Due date and time is required")
-    @Column(name = "due_date_time", nullable = false)
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     private LocalDateTime dueDateTime;
 
-    @Column(name = "status", nullable = false, length = 50)
     private String status = "OPEN";
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "last_reminder_at")
     private LocalDateTime lastReminderAt;
 
     public Request() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
     }
 
     public Request(String title, String clientName, String assignee, String assigneeEmail, LocalDateTime dueDateTime, String status) {
@@ -61,23 +55,11 @@ public class Request {
         this.accountantEmail = "kathirvelpalani294@gmail.com";
         this.dueDateTime = dueDateTime;
         this.status = (status != null && !status.isBlank()) ? status : "OPEN";
+        this.createdAt = LocalDateTime.now();
     }
 
     public Request(String title, String clientName, String assignee, LocalDate dueDate, String status) {
         this(title, clientName, assignee, assignee != null ? assignee.toLowerCase() + "@company.com" : null, dueDate != null ? dueDate.atTime(17, 0) : null, status);
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
-        }
-        if (this.status == null || this.status.isBlank()) {
-            this.status = "OPEN";
-        }
-        if (this.accountantEmail == null || this.accountantEmail.isBlank()) {
-            this.accountantEmail = "kathirvelpalani294@gmail.com";
-        }
     }
 
     /**
@@ -111,11 +93,11 @@ public class Request {
 
     // Getters and Setters
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 

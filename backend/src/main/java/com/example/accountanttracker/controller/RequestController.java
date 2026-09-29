@@ -52,7 +52,7 @@ public class RequestController {
      * GET /api/requests/{id}
      */
     @GetMapping("/requests/{id}")
-    public ResponseEntity<?> getRequestById(@PathVariable Long id) {
+    public ResponseEntity<?> getRequestById(@PathVariable String id) {
         return requestService.getRequestById(id)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -64,13 +64,13 @@ public class RequestController {
      * DELETE /api/requests/{id}
      */
     @DeleteMapping("/requests/{id}")
-    public ResponseEntity<?> deleteRequest(@PathVariable Long id) {
+    public ResponseEntity<?> deleteRequest(@PathVariable String id) {
         try {
             requestService.deleteRequest(id);
             return ResponseEntity.ok(Map.of("message", "Task deleted successfully", "id", id));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Collections.singletonMap("error", ex.getMessage()));
+                .body(Collections.singletonMap("error", ex.getMessage()));
         }
     }
 
@@ -79,7 +79,7 @@ public class RequestController {
      * PUT /api/requests/{id}/status
      */
     @PutMapping("/requests/{id}/status")
-    public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public ResponseEntity<?> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
         String status = body.get("status");
         if (status == null || status.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Status field is required"));

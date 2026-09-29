@@ -1,48 +1,39 @@
 package com.example.accountanttracker.entity;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
  * Entity representing an automated overdue reminder sent to an assignee.
  */
-@Entity
-@Table(name = "reminders")
+@Document(collection = "reminders")
 public class Reminder {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(name = "request_id", nullable = false)
-    private Long requestId;
+    private String requestId;
 
-    @Column(name = "request_title", nullable = false)
     private String requestTitle;
 
-    @Column(name = "client_name", nullable = false)
     private String clientName;
 
-    @Column(name = "assignee", nullable = false)
     private String assignee;
 
-    @Column(name = "due_date", nullable = false)
     private LocalDate dueDate;
 
-    @Column(name = "status", nullable = false)
     private String status;
 
-    @Column(name = "message", length = 1000, nullable = false)
     private String message;
 
-    @Column(name = "generated_at", nullable = false)
-    private LocalDateTime generatedAt;
+    private LocalDateTime generatedAt = LocalDateTime.now();
 
     public Reminder() {
     }
 
-    public Reminder(Long requestId, String requestTitle, String clientName, String assignee, LocalDate dueDate, String status, String message) {
+    public Reminder(String requestId, String requestTitle, String clientName, String assignee, LocalDate dueDate, String status, String message) {
         this.requestId = requestId;
         this.requestTitle = requestTitle;
         this.clientName = clientName;
@@ -53,19 +44,19 @@ public class Reminder {
         this.generatedAt = LocalDateTime.now();
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public Long getRequestId() {
+    public String getRequestId() {
         return requestId;
     }
 
-    public void setRequestId(Long requestId) {
+    public void setRequestId(String requestId) {
         this.requestId = requestId;
     }
 
