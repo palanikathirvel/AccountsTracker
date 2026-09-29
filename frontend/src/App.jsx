@@ -35,9 +35,10 @@ export default function App() {
 
   // Register employee handler
   const handleRegisterEmployee = async (userData) => {
-    await requestService.register(userData);
+    const res = await requestService.register(userData);
     showMessage(`Employee account created for ${userData.name}!`, 'success');
     await fetchEmployees();
+    return res;
   };
 
   // Sign out handler

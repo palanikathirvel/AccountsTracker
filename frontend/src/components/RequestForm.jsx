@@ -112,20 +112,24 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
         password: newEmpPass.trim(),
         role: 'EMPLOYEE',
       });
-      // Auto select the new employee
+      const resolvedName = emp?.name || newEmpName.trim();
+      const resolvedEmail = emp?.email || newEmpEmail.trim().toLowerCase();
+
+      // Auto select the newly added employee
       setFormData((prev) => ({
         ...prev,
-        assignee: emp.name,
-        assigneeEmail: emp.email,
+        assignee: resolvedName,
+        assigneeEmail: resolvedEmail,
       }));
       setNewEmpName('');
       setNewEmpEmail('');
       setNewEmpPass('');
       setShowAddEmp(false);
-      setSuccessMessage(`✓ Real employee "${emp.name}" (${emp.email}) added!`);
-      setTimeout(() => setSuccessMessage(''), 4000);
+      setSuccessMessage(`✓ Real employee "${resolvedName}" (${resolvedEmail}) added successfully!`);
+      setTimeout(() => setSuccessMessage(''), 4500);
     } catch (err) {
-      alert(err.response?.data?.error || err.message || 'Failed to add employee');
+      const errMsg = err.response?.data?.error || err.message || 'Failed to add employee';
+      alert(errMsg);
     } finally {
       setAddingEmp(false);
     }
