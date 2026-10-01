@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 
-const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'COMPLETED'];
+const STATUS_OPTIONS = [
+  { value: 'OPEN', label: 'Open' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'COMPLETED', label: 'Completed' },
+];
 
 export default function StatusDropdown({ currentStatus, requestId, onStatusChange }) {
   const [loading, setLoading] = useState(false);
@@ -20,32 +25,38 @@ export default function StatusDropdown({ currentStatus, requestId, onStatusChang
   const getStatusColorClass = (status) => {
     switch (status) {
       case 'OPEN':
-        return 'status-open';
+        return 'status-select-open';
       case 'IN_PROGRESS':
-        return 'status-progress';
+        return 'status-select-progress';
       case 'COMPLETED':
-        return 'status-completed';
+        return 'status-select-completed';
       default:
-        return 'status-default';
+        return 'status-select-default';
     }
   };
 
   return (
-    <div className="status-dropdown-container">
+    <div className={`status-dropdown-container ${getStatusColorClass(currentStatus)}`}>
       <select
         value={currentStatus}
         onChange={handleChange}
         disabled={loading}
         className={`status-select ${getStatusColorClass(currentStatus)}`}
-        title="Change status"
+        title="Click to update task status"
       >
-        {STATUS_OPTIONS.map((status) => (
-          <option key={status} value={status}>
-            {status.replace('_', ' ')}
+        {STATUS_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
           </option>
         ))}
       </select>
-      {loading && <span className="status-spinner" title="Updating...">⏳</span>}
+      <div className="status-dropdown-icon">
+        {loading ? (
+          <Loader2 size={12} className="spin text-primary" />
+        ) : (
+          <ChevronDown size={12} />
+        )}
+      </div>
     </div>
   );
 }

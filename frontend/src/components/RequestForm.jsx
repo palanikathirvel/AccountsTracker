@@ -1,4 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import requestService from '../services/requestService';
+import {
+  FilePlus,
+  UserPlus,
+  Calendar,
+  Building,
+  User,
+  Clock,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  ListChecks,
+} from 'lucide-react';
 
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'COMPLETED'];
 
@@ -27,6 +41,11 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
   const [newEmpPass, setNewEmpPass] = useState('');
   const [addingEmp, setAddingEmp] = useState(false);
 
+  // AI Task Breakdown helper
+  const [showAiBreakdown, setShowAiBreakdown] = useState(false);
+  const [aiBreakdown, setAiBreakdown] = useState(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -46,7 +65,7 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
     const errs = {};
     if (!formData.title.trim()) errs.title = 'Title is required';
     if (!formData.clientName.trim()) errs.clientName = 'Client name is required';
-    if (!formData.assignee.trim()) errs.assignee = 'Assignee is required. Please register an employee below.';
+    if (!formData.assignee.trim()) errs.assignee = 'Assignee is required. Register an employee if list is empty.';
     if (!formData.dueDateTime) errs.dueDateTime = 'Due date and time is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -69,6 +88,21 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
     }
   };
 
+  // Quick preset deadline buttons
+  const setQuickDeadline = (hoursFromNow, targetHour = null) => {
+    const d = new Date();
+    if (targetHour !== null) {
+      if (hoursFromNow > 0) d.setDate(d.getDate() + 1);
+      d.setHours(targetHour, 0, 0, 0);
+    } else {
+      d.setHours(d.getHours() + hoursFromNow);
+      d.setMinutes(0, 0, 0);
+    }
+    const pad = (n) => String(n).padStart(2, '0');
+    const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setFormData((prev) => ({ ...prev, dueDateTime: formatted }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -78,7 +112,7 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
 
     try {
       await onRequestCreated(formData);
-      setSuccessMessage('✓ Task created! Live overdue alerts will be sent to assignee & accountant.');
+      setSuccessMessage('✓ Task successfully created & assigned! Watcher Agent is active.');
       setFormData({
         title: '',
         clientName: '',
@@ -88,12 +122,36 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
         dueDateTime: getDefaultDateTime(),
         status: 'OPEN',
       });
+      setShowAiBreakdown(false);
+      setAiBreakdown(null);
       setTimeout(() => setSuccessMessage(''), 4500);
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'Failed to create request';
       setErrors({ form: msg });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Quick AI Breakdown of task
+  const handleFetchAiBreakdown = async () => {
+    if (!formData.title.trim()) {
+      setErrors((prev) => ({ ...prev, title: 'Please enter a task title first to generate AI insights' }));
+      return;
+    }
+    setLoadingAi(true);
+    try {
+      const res = await requestService.getTaskBreakdown(
+        formData.title,
+        formData.clientName || 'Client',
+        formData.assignee || 'Assigned Staff'
+      );
+      setAiBreakdown(res);
+      setShowAiBreakdown(true);
+    } catch (err) {
+      console.warn('AI breakdown error:', err);
+    } finally {
+      setLoadingAi(false);
     }
   };
 
@@ -125,7 +183,7 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
       setNewEmpEmail('');
       setNewEmpPass('');
       setShowAddEmp(false);
-      setSuccessMessage(`✓ Real employee "${resolvedName}" (${resolvedEmail}) added successfully!`);
+      setSuccessMessage(`✓ Real employee "${resolvedName}" (${resolvedEmail}) registered successfully!`);
       setTimeout(() => setSuccessMessage(''), 4500);
     } catch (err) {
       const errMsg = err.response?.data?.error || err.message || 'Failed to add employee';
@@ -139,29 +197,57 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
     <div className="card form-card">
       <div className="card-header">
         <div className="card-header-flex">
-          <div>
-            <h2 className="card-title">Assign New Accounting Task</h2>
-            <span className="card-subtitle">
-              Supervised by Accountant (<strong>kathirvelpalani294@gmail.com</strong>) • Live Watcher Agent
-            </span>
+          <div className="card-title-group">
+            <div className="form-icon-wrap">
+              <FilePlus size={20} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="card-title">Assign New Accounting Task</h2>
+              <span className="card-subtitle">
+                Supervised by Accountant (<strong>kathirvelpalani294@gmail.com</strong>) • Live Watcher Agent
+              </span>
+            </div>
           </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => setShowAddEmp(!showAddEmp)}
-          >
-            {showAddEmp ? '✖ Cancel' : '➕ Register Real Employee'}
-          </button>
+          <div className="card-header-actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowAddEmp(!showAddEmp)}
+            >
+              {showAddEmp ? (
+                <>
+                  <X size={13} style={{ marginRight: '4px' }} /> Cancel
+                </>
+              ) : (
+                <>
+                  <UserPlus size={13} style={{ marginRight: '4px' }} /> Register Real Employee
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {successMessage && <div className="alert alert-success">{successMessage}</div>}
-      {errors.form && <div className="alert alert-danger">{errors.form}</div>}
+      {successMessage && (
+        <div className="alert alert-success" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircle2 size={16} />
+          <span>{successMessage}</span>
+        </div>
+      )}
+      {errors.form && (
+        <div className="alert alert-danger" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertCircle size={16} />
+          <span>{errors.form}</span>
+        </div>
+      )}
 
       {/* Inline Quick Add Real Employee Form */}
       {showAddEmp && (
         <div className="quick-add-emp-box">
-          <h4 className="quick-add-title">Add Employee with Real Email Address:</h4>
+          <div className="quick-add-header">
+            <UserPlus size={16} className="text-primary" />
+            <h4 className="quick-add-title">Register Real Employee Account:</h4>
+          </div>
           <form onSubmit={handleCreateEmployee} className="quick-add-grid">
             <input
               type="text"
@@ -172,14 +258,14 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
             />
             <input
               type="email"
-              placeholder="Real Email ID (e.g. employee@gmail.com)"
+              placeholder="Real Email ID (e.g. name@gmail.com)"
               value={newEmpEmail}
               onChange={(e) => setNewEmpEmail(e.target.value)}
               required
             />
             <input
               type="password"
-              placeholder="Password for login"
+              placeholder="Login Password"
               value={newEmpPass}
               onChange={(e) => setNewEmpPass(e.target.value)}
               required
@@ -195,16 +281,28 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
         <div className="form-grid">
           {/* Title */}
           <div className="form-group">
-            <label htmlFor="req-title">
-              Task Title <span className="required">*</span>
-            </label>
+            <div className="form-label-row">
+              <label htmlFor="req-title">
+                Task Title <span className="required">*</span>
+              </label>
+              <button
+                type="button"
+                className="btn-ai-suggest-inline"
+                onClick={handleFetchAiBreakdown}
+                disabled={loadingAi}
+                title="Use Gemini AI to suggest compliance subtasks"
+              >
+                <Sparkles size={11} className={loadingAi ? 'spin' : ''} />
+                <span>{loadingAi ? 'Thinking...' : 'AI Subtasks'}</span>
+              </button>
+            </div>
             <input
               id="req-title"
               type="text"
               name="title"
               value={formData.title}
               onChange={handleChange}
-              placeholder="e.g. Quarterly Audit Filing"
+              placeholder="e.g. Quarterly Audit Filing, GST Return, IT Reconciliation"
               className={errors.title ? 'input-error' : ''}
               required
             />
@@ -222,7 +320,7 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
               name="clientName"
               value={formData.clientName}
               onChange={handleChange}
-              placeholder="e.g. Acme Tech Solutions"
+              placeholder="e.g. Acme Corporation, Global Logistics Ltd."
               className={errors.clientName ? 'input-error' : ''}
               required
             />
@@ -232,7 +330,7 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
           {/* Assignee */}
           <div className="form-group">
             <label htmlFor="req-assignee">
-              Assignee (Real Email) <span className="required">*</span>
+              Assignee (Real Employee) <span className="required">*</span>
             </label>
             {employees && employees.length > 0 ? (
               <select
@@ -251,13 +349,13 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
               </select>
             ) : (
               <div className="no-emp-warning">
-                <span>No employees added yet. </span>
+                <span>No employees registered yet. </span>
                 <button
                   type="button"
                   className="btn-link"
                   onClick={() => setShowAddEmp(true)}
                 >
-                  Click here to add your first real employee!
+                  Register employee now
                 </button>
               </div>
             )}
@@ -278,12 +376,37 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
               className={errors.dueDateTime ? 'input-error' : ''}
               required
             />
+            {/* Quick Presets */}
+            <div className="deadline-quick-presets">
+              <span className="preset-label">Quick:</span>
+              <button
+                type="button"
+                className="btn-preset-pill"
+                onClick={() => setQuickDeadline(2)}
+              >
+                +2 Hours
+              </button>
+              <button
+                type="button"
+                className="btn-preset-pill"
+                onClick={() => setQuickDeadline(0, 17)}
+              >
+                Today 5 PM
+              </button>
+              <button
+                type="button"
+                className="btn-preset-pill"
+                onClick={() => setQuickDeadline(1, 10)}
+              >
+                Tomorrow 10 AM
+              </button>
+            </div>
             {errors.dueDateTime && <span className="error-text">{errors.dueDateTime}</span>}
           </div>
 
           {/* Status */}
           <div className="form-group">
-            <label htmlFor="req-status">Status</label>
+            <label htmlFor="req-status">Initial Status</label>
             <select
               id="req-status"
               name="status"
@@ -299,13 +422,53 @@ export default function RequestForm({ employees, onEmployeeAdded, onRequestCreat
           </div>
         </div>
 
+        {/* AI Task Breakdown suggestion box if generated */}
+        {showAiBreakdown && aiBreakdown && (
+          <div className="ai-breakdown-card">
+            <div className="ai-breakdown-header">
+              <Sparkles size={16} className="text-primary" />
+              <strong>AI Suggested Compliance Subtasks:</strong>
+              <button
+                type="button"
+                className="btn-link text-muted"
+                style={{ marginLeft: 'auto', fontSize: '11px' }}
+                onClick={() => setShowAiBreakdown(false)}
+              >
+                ✕ Dismiss
+              </button>
+            </div>
+            {aiBreakdown.estimatedHours && (
+              <span className="ai-est-badge">
+                <Clock size={11} /> Est. Duration: {aiBreakdown.estimatedHours} hours
+              </span>
+            )}
+            {aiBreakdown.subtasks && aiBreakdown.subtasks.length > 0 && (
+              <ul className="ai-subtasks-list">
+                {aiBreakdown.subtasks.map((st, i) => (
+                  <li key={i}>
+                    <CheckCircle2 size={12} className="text-success" />
+                    <span>{st}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         <div className="form-actions">
           <button
             type="submit"
-            className="btn btn-primary"
+            className="btn btn-primary btn-submit-task"
             disabled={submitting || !employees || employees.length === 0}
           >
-            {submitting ? 'Creating Task...' : '➕ ASSIGN TASK'}
+            {submitting ? (
+              'Creating Task...'
+            ) : (
+              <>
+                <FilePlus size={15} style={{ marginRight: '6px' }} />
+                ASSIGN ACCOUNTING TASK
+              </>
+            )}
           </button>
         </div>
       </form>

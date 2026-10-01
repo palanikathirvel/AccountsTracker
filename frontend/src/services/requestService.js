@@ -76,6 +76,32 @@ export const requestService = {
     const response = await api.delete(`/requests/${id}`);
     return response.data;
   },
+
+  // AI Assistant Integrations
+  getAiStatus: async () => {
+    const response = await api.get('/ai/status');
+    return response.data;
+  },
+
+  draftAiEmail: async (requestId, tone = 'PROFESSIONAL') => {
+    const response = await api.post('/ai/draft-email', { requestId, tone });
+    return response.data;
+  },
+
+  sendAiDraft: async (requestId, subject, body) => {
+    const response = await api.post('/ai/send-draft', { requestId, subject, body });
+    return response.data;
+  },
+
+  getTaskBreakdown: async (title, clientName, assignee) => {
+    const response = await api.post('/ai/task-breakdown', { title, clientName, assignee });
+    return response.data;
+  },
+
+  getWorkloadAnalysis: async () => {
+    const response = await api.post('/ai/workload-analysis');
+    return response.data;
+  },
 };
 
 export default requestService;
